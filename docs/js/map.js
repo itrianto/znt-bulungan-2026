@@ -4,6 +4,7 @@
    - Mode warna: per surveyor / per status
    - Surveyor diambil dari Firestore (surveyorPublic), cadangan GeoJSON
    - Popup dihitung saat dibuka, jadi selalu memakai data terbaru
+   - Legenda dapat diminimize (mulai tertutup di HP)
    ============================================================ */
 
 (function () {
@@ -33,6 +34,9 @@
   let daftarKategori = [];
   let daftarSurveyor = [];
   let modeWarna = 'surveyor';
+
+  // Di HP, legenda mulai dalam keadaan tertutup
+  let legendaTerbuka = !window.matchMedia('(max-width: 768px)').matches;
 
   // ============================================================
   // FUNGSI DATA
@@ -197,7 +201,11 @@
         .join('');
     }
 
-    wadah.innerHTML = html;
+    wadah.innerHTML =
+      `<button type="button" class="map__legend-toggle" aria-expanded="${legendaTerbuka}" aria-controls="mapLegendBody">` +
+      `<span>Legenda</span><span class="map__legend-chevron" aria-hidden="true">&#9662;</span></button>` +
+      `<div class="map__legend-body" id="mapLegendBody">${html}</div>`;
+    wadah.classList.toggle('is-collapsed', !legendaTerbuka);
   }
 
   function gantiMode(mode) {
@@ -236,6 +244,18 @@
     document.getElementById('colorMode').addEventListener('change', (e) => {
       gantiMode(e.target.value);
     });
+
+    const wadahLegenda = document.getElementById('mapLegend');
+    if (wadahLegenda) {
+      // Klik legenda tidak ikut menggeser atau mengklik peta
+      L.DomEvent.disableClickPropagation(wadahLegenda);
+      L.DomEvent.disableScrollPropagation(wadahLegenda);
+      wadahLegenda.addEventListener('click', (e) => {
+        if (!e.target.closest('.map__legend-toggle')) return;
+        legendaTerbuka = !legendaTerbuka;
+        perbaruiLegenda();
+      });
+    }
   }
 
   async function muatDataZona(url = 'public-data/public-zona.geojson') {

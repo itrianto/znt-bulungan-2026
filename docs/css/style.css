@@ -216,3 +216,49 @@ button { cursor: pointer; }
     font-size: 16px;
   }
 }
+
+.map__legend-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  min-height: 32px;
+  padding: 4px 2px;
+  background: none;
+  border: 0;
+  font: inherit;
+  font-weight: 600;
+  color: inherit;
+  cursor: pointer;
+}
+
+.map__legend-chevron {
+  display: inline-block;
+  transition: transform 0.2s ease;
+}
+
+.map__legend.is-collapsed .map__legend-chevron {
+  transform: rotate(-90deg);
+}
+
+.map__legend-body {
+  margin-top: 6px;
+  max-height: 35vh;
+  overflow-y: auto;
+}
+
+.map__legend.is-collapsed .map__legend-body {
+  display: none;
+}
+
+.map__legend.is-collapsed {
+  width: auto;
+  min-width: 0;
+}
+
+@media (max-width: 768px) {
+  .map__legend {
+    max-width: 70%;
+  }
+}
