@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard Monitoring ZNT Kabupaten Bulungan</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="header">
+    <div class="brand"><span class="brand__mark">Z</span><h1 class="header__title">ZNT <span>Bulungan</span></h1></div>
+    <div class="header__actions">
+      <a href="admin.html" class="header__btn">Login Admin</a>
+      <button class="theme-toggle" id="themeToggle" type="button" aria-label="Aktifkan tema gelap" aria-pressed="false"><span aria-hidden="true">&#9681;</span><span class="theme-toggle__text">Gelap</span></button>
+    </div>
+  </header>
+
+  <main class="main">
+    <section class="map-section" aria-label="Peta zona survei">
+      <div id="map" class="map"></div>
+      <div class="map__controls" id="mapControls" role="group" aria-label="Kontrol peta">
+        <label class="map__control-label" for="colorMode">Tampilan</label>
+        <select id="colorMode" class="map__select" aria-label="Pilih mode warna">
+          <option value="surveyor">Warna per surveyor</option>
+          <option value="status">Warna per status</option>
+        </select>
+      </div>
+      <div class="map__legend" id="mapLegend" aria-label="Legenda peta"></div>
+    </section>
+
+    <aside class="panel" aria-label="Panel ringkasan dan grafik">
+      <div class="panel__header">
+        <h2>Ringkasan Progres</h2>
+      </div>
+
+      <div class="summary-cards" id="summaryCards" role="region" aria-label="Kartu ringkasan">
+        <article class="summary-card summary-card--total">
+          <span class="summary-card__label">Total Zona</span>
+          <span class="summary-card__value" id="totalZona">-</span>
+        </article>
+        <article class="summary-card summary-card--selesai">
+          <span class="summary-card__label">Selesai</span>
+          <span class="summary-card__value" id="zonaSelesai">-</span>
+        </article>
+        <article class="summary-card summary-card--proses">
+          <span class="summary-card__label">Proses</span>
+          <span class="summary-card__value" id="zonaProses">-</span>
+        </article>
+        <article class="summary-card summary-card--belum">
+          <span class="summary-card__label">Belum</span>
+          <span class="summary-card__value" id="zonaBelum">-</span>
+        </article>
+        <article class="summary-card summary-card--belumdiverifikasi">
+          <span class="summary-card__label">Belum diverifikasi</span>
+          <span class="summary-card__value" id="zonaBelumDiverifikasi">-</span>
+        </article>
+        <article class="summary-card summary-card--persen">
+          <span class="summary-card__label">Persentase Selesai</span>
+          <span class="summary-card__value" id="persenSelesai">-</span>
+        </article>
+      </div>
+
+      <div class="chart-wrapper" aria-label="Grafik progres zona">
+        <h3 class="chart-title">Progres Zona</h3>
+        <canvas id="chartProgresZona" aria-label="Grafik doughnut progres zona"></canvas>
+      </div>
+
+      <div class="chart-wrapper" aria-label="Grafik rekap surveyor">
+        <h3 class="chart-title">Zona per Surveyor</h3>
+        <canvas id="chartRekapSurveyor" aria-label="Grafik batang zona per surveyor"></canvas>
+      </div>
+
+      <div class="chart-wrapper" aria-label="Grafik progres harian">
+        <h3 class="chart-title">Progres Harian <span class="chart-title__badge">(data publik statis)</span></h3>
+        <canvas id="chartProgresHarian" aria-label="Grafik garis progres harian"></canvas>
+      </div>
+
+      <div class="placeholder" aria-label="Placeholder progres titik">
+        <h3 class="chart-title">Progres Titik Survey</h3>
+        <p class="placeholder__text">Belum ada data titik (target 1.509)</p>
+      </div>
+
+      <section class="zone-table-card" id="commentPublicSection" aria-labelledby="commentPublicTitle">
+        <div class="section-heading">
+          <h3 class="chart-title" id="commentPublicTitle">Komentar & Kendala</h3>
+        </div>
+        
+        <div style="margin:20px 0;padding:20px;background:#f8f9fa;border-radius:8px">
+          <h4 style="margin:0 0 16px 0;font-size:1em">Kirim Komentar Baru</h4>
+          <div style="margin-bottom:12px">
+            <label style="display:block;margin-bottom:4px;font-weight:500">Nama Surveyor</label>
+            <input type="text" id="commentSurveyorName" placeholder="Nama Anda" maxlength="100" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:4px">
+          </div>
+          <div style="margin-bottom:12px">
+            <label style="display:block;margin-bottom:4px;font-weight:500">ID Zona</label>
+            <input type="text" id="commentZoneId" placeholder="Z001" maxlength="4" pattern="Z[0-9]{3}" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:4px">
+          </div>
+          <div style="margin-bottom:12px">
+            <label style="display:block;margin-bottom:4px;font-weight:500">Komentar / Kendala</label>
+            <textarea id="commentMessage" placeholder="Jelaskan kendala atau komentar Anda..." maxlength="1000" rows="4" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:4px"></textarea>
+            <small style="color:#5f6368"><span id="commentCharCount">0</span>/1000 karakter</small>
+          </div>
+          <p id="commentFormStatus" style="margin:8px 0"></p>
+          <button type="button" id="btnSendComment" class="header__btn">Kirim Komentar</button>
+        </div>
+
+        <h4 style="margin:20px 0 12px 0">Komentar yang Disetujui</h4>
+        <div id="commentListContainer">
+          <p class="placeholder__text">Memuat komentar...</p>
+        </div>
+      </section>
+
+      <section class="zone-table-card" id="surveyorSection" style="display:none" aria-labelledby="surveyorTableTitle">
+        <div class="section-heading"><h3 class="chart-title" id="surveyorTableTitle">Surveyor</h3><span id="surveyorCount" class="table-count"></span></div>
+        <div class="table-scroll"><table class="zone-table"><thead><tr><th>Nama Surveyor</th><th>Jumlah Zona</th><th>Zona Ditugaskan</th></tr></thead><tbody id="surveyorTableBody"></tbody></table></div>
+      </section>
+
+      <section class="zone-table-card" aria-labelledby="zoneTableTitle">
+        <div class="section-heading"><h3 class="chart-title" id="zoneTableTitle">Zona terbaru</h3><span id="zoneTableCount" class="table-count"></span></div>
+        <div class="table-scroll"><table class="zone-table"><thead><tr><th>ID Zona</th><th>Status</th></tr></thead><tbody id="zoneTableBody"></tbody></table></div>
+      </section>
+    </aside>
+  </main>
+
+   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+   <script src="js/firebase-config.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/surveyor.js"></script>
+  <script src="js/comment-public.js"></script>
+  <script src="js/progress.js"></script>
+  <script src="js/map.js"></script>
+  <script src="js/charts.js"></script>
+  <script src="js/main.js"></script>
+  <script src="js/theme.js"></script>
+</body>
+</html>

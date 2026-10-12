@@ -1,0 +1,10 @@
+node_modules/
+.firebase/
+firebase-debug.log
+.env
+
+znt-bulungan-2026/
+
+data/
+docs/data/
+docs/js/firebase-config.js

@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Admin · ZNT Bulungan</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="header">
+    <div class="brand"><span class="brand__mark">Z</span><h1 class="header__title">Admin <span>ZNT Bulungan</span></h1></div>
+    <a class="header__btn" href="index.html">Dashboard Publik</a>
+  </header>
+  <main class="main">
+    <!-- Admin Login Card -->
+    <section class="admin-auth-card" aria-labelledby="adminTitle">
+      <!-- State: Not Logged In -->
+      <div id="adminAuthForm" class="admin-auth-form">
+        <h2 class="admin-auth-form__title" id="adminTitle">Masuk Admin</h2>
+        
+        <div class="admin-auth-form__group">
+          <label for="adminEmail" class="admin-auth-form__label">Email</label>
+          <input 
+            type="email" 
+            id="adminEmail" 
+            class="admin-auth-form__input"
+            placeholder="admin@example.com"
+            autocomplete="email"
+            aria-describedby="adminStatus"
+          >
+        </div>
+
+        <div class="admin-auth-form__group">
+          <label for="adminPassword" class="admin-auth-form__label">Password</label>
+          <div class="admin-auth-form__password-wrapper">
+            <input 
+              type="password" 
+              id="adminPassword" 
+              class="admin-auth-form__input"
+              placeholder="••••••••"
+              autocomplete="current-password"
+            >
+            <button 
+              type="button"
+              id="adminTogglePassword"
+              class="admin-auth-form__toggle-password"
+              aria-label="Tampilkan password"
+            >
+              <span aria-hidden="true">👁️</span>
+            </button>
+          </div>
+        </div>
+
+        <div id="adminStatus" class="admin-auth-form__message"></div>
+
+        <button 
+          type="button" 
+          id="adminLogin"
+          class="admin-auth-form__submit"
+        >
+          Masuk
+        </button>
+      </div>
+
+      <!-- State: Logged In -->
+      <div id="adminAuthVerified" class="admin-auth-verified" hidden>
+        <div class="admin-auth-verified__badge">
+          <span aria-hidden="true">✓</span> Terverifikasi admin
+        </div>
+        <p class="admin-auth-verified__email" id="adminEmailDisplay"></p>
+        <button 
+          type="button" 
+          id="adminLogout"
+          class="admin-auth-verified__logout"
+        >
+          Keluar
+        </button>
+      </div>
+    </section>
+
+    <section class="zone-table-card" id="surveyorSection" style="display:none" aria-labelledby="surveyorTitle">
+      <div class="section-heading">
+        <h2 class="chart-title" id="surveyorTitle">Pengelolaan Surveyor</h2>
+        <button type="button" id="btnNewAssignment" class="header__btn">+ Penugasan Baru</button>
+      </div>
+      <p class="placeholder__text" id="assignmentStatus"></p>
+      
+      <div id="assignmentForm" style="display:none;margin:20px 0;padding:20px;background:#f8f9fa;border-radius:8px">
+        <h3 class="chart-title" id="formTitle" style="margin-bottom:16px">Penugasan Surveyor Baru</h3>
+        <input type="hidden" id="assignmentId">
+        <div style="margin-bottom:12px">
+          <label style="display:block;margin-bottom:4px;font-weight:500">Nama Surveyor</label>
+          <input type="text" id="displayName" placeholder="Nama untuk ditampilkan di dashboard publik" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:4px">
+        </div>
+        <div style="margin-bottom:12px">
+          <label style="display:block;margin-bottom:4px;font-weight:500">ID Zona (pisah dengan koma)</label>
+          <textarea id="zones" placeholder="Z001, Z002, Z003" rows="3" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:4px"></textarea>
+          <small style="color:#5f6368">Contoh: Z001, Z002, Z003 (kosongkan jika belum ada penugasan)</small>
+        </div>
+        <p id="formStatus" style="margin:8px 0;color:#d93025"></p>
+        <div class="popup-actions">
+          <button type="button" id="btnSaveAssignment">Simpan</button>
+          <button type="button" id="btnCancelForm" style="background:#5f6368">Batal</button>
+        </div>
+      </div>
+
+      <div class="table-scroll">
+        <table class="zone-table">
+          <thead>
+            <tr>
+              <th>Nama Surveyor</th>
+              <th>Jumlah Zona</th>
+              <th>Status</th>
+              <th>Diperbarui</th>
+              <th>Aksi</th>
+            </tr>
+          </thead>
+          <tbody id="assignmentTableBody">
+            <tr><td colspan="5" style="text-align:center">Memuat data…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="zone-table-card" id="progressSection" style="display:none" aria-labelledby="progressTitle">
+      <div class="section-heading">
+        <h2 class="chart-title" id="progressTitle">Pembaruan Progres Zona</h2>
+      </div>
+      <p class="placeholder__text" id="progressStatus"></p>
+      
+      <div id="progressForm" style="display:none;margin:20px 0;padding:20px;background:#f8f9fa;border-radius:8px">
+        <h3 class="chart-title" style="margin-bottom:16px">Edit Progres Zona <span id="editZoneId" style="color:#c46b4e"></span></h3>
+        <div style="margin-bottom:12px">
+          <label style="display:block;margin-bottom:4px;font-weight:500">Status</label>
+          <select id="progressStatusSelect" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:4px">
+            <option value="Belum">Belum</option>
+            <option value="Proses">Proses</option>
+            <option value="Selesai">Selesai</option>
+            <option value="Masalah">Masalah</option>
+          </select>
+        </div>
+        <div style="margin-bottom:12px">
+          <label style="display:block;margin-bottom:4px;font-weight:500">Titik Selesai (0-1509)</label>
+          <input type="number" id="progressTitik" min="0" max="1509" placeholder="Jumlah titik yang sudah selesai" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:4px">
+        </div>
+        <p id="progressFormStatus" style="margin:8px 0;color:#d93025"></p>
+        <div class="popup-actions">
+          <button type="button" id="btnSaveProgress">Simpan Progres</button>
+          <button type="button" id="btnCancelProgress" style="background:#5f6368">Batal</button>
+        </div>
+      </div>
+
+      <div class="table-scroll">
+        <table class="zone-table">
+          <thead>
+            <tr>
+              <th>ID Zona</th>
+              <th>Surveyor</th>
+              <th>Status</th>
+              <th>Titik Selesai</th>
+              <th>Diperbarui</th>
+              <th>Aksi</th>
+            </tr>
+          </thead>
+          <tbody id="progressTableBody">
+            <tr><td colspan="6" style="text-align:center">Memuat data…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="zone-table-card" id="commentSection" style="display:none" aria-labelledby="commentTitle">
+      <div class="section-heading">
+        <h2 class="chart-title" id="commentTitle">Moderasi Komentar</h2>
+      </div>
+      <p class="placeholder__text" id="commentStatus"></p>
+      
+      <div class="table-scroll">
+        <table class="zone-table">
+          <thead>
+            <tr>
+              <th>Surveyor</th>
+              <th>ID Zona</th>
+              <th>Komentar</th>
+              <th>Waktu</th>
+              <th>Status</th>
+              <th>Aksi</th>
+            </tr>
+          </thead>
+          <tbody id="commentTableBody">
+            <tr><td colspan="6" style="text-align:center">Memuat komentar…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <script src="js/firebase-config.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/admin-surveyor.js"></script>
+  <script src="js/admin-progress.js"></script>
+  <script src="js/admin-comment.js"></script>
+  <script src="js/admin.js"></script>
+</body>
+</html>

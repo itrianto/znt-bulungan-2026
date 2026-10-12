@@ -1,0 +1,134 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    // Otorisasi berasal dari dokumen privat yang dibuat melalui Firebase Console.
+    function isAdmin() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    function validProgress() {
+      return request.resource.data.keys().hasOnly(['status', 'titikSelesai', 'updatedAt'])
+        && request.resource.data.keys().hasAll(['status', 'updatedAt'])
+        && request.resource.data.status in ['Belum', 'Proses', 'Selesai', 'Masalah']
+        && (!('titikSelesai' in request.resource.data)
+            || (request.resource.data.titikSelesai is int
+                && request.resource.data.titikSelesai >= 0
+                && request.resource.data.titikSelesai <= 1509))
+        && request.resource.data.updatedAt == request.time;
+    }
+
+    // Validasi assignment internal (admin-only)
+    function validAssignment() {
+      return request.resource.data.keys().hasOnly(['displayName', 'zones', 'isPublished', 'createdAt', 'updatedAt'])
+        && request.resource.data.keys().hasAll(['displayName', 'zones', 'isPublished', 'updatedAt'])
+        && request.resource.data.displayName is string
+        && request.resource.data.displayName.size() > 0
+        && request.resource.data.displayName.size() <= 100
+        && request.resource.data.zones is list
+        && request.resource.data.zones.size() >= 0
+        && request.resource.data.zones.size() <= 500
+        && request.resource.data.isPublished is bool
+        && request.resource.data.updatedAt is timestamp
+        && (!('createdAt' in request.resource.data) || request.resource.data.createdAt is timestamp);
+    }
+
+    // Validasi data publik surveyor
+    function validPublicSurveyor() {
+      return request.resource.data.keys().hasOnly(['displayName', 'zones', 'updatedAt'])
+        && request.resource.data.keys().hasAll(['displayName', 'zones', 'updatedAt'])
+        && request.resource.data.displayName is string
+        && request.resource.data.displayName.size() > 0
+        && request.resource.data.displayName.size() <= 100
+        && request.resource.data.zones is list
+        && request.resource.data.zones.size() >= 0
+        && request.resource.data.zones.size() <= 500
+        && request.resource.data.updatedAt is timestamp;
+    }
+
+    // Validasi komentar baru dari publik
+    function validNewComment() {
+      return request.resource.data.keys().hasOnly(['surveyorName', 'zoneId', 'message', 'status', 'createdAt'])
+        && request.resource.data.keys().hasAll(['surveyorName', 'zoneId', 'message', 'status', 'createdAt'])
+        && request.resource.data.surveyorName is string
+        && request.resource.data.surveyorName.size() > 0
+        && request.resource.data.surveyorName.size() <= 100
+        && request.resource.data.zoneId is string
+        && request.resource.data.zoneId.matches('^Z[0-9]{3}$')
+        && request.resource.data.message is string
+        && request.resource.data.message.size() > 0
+        && request.resource.data.message.size() <= 1000
+        && request.resource.data.status == 'pending'
+        && (request.resource.data.createdAt == request.time || request.resource.data.createdAt is timestamp);
+    }
+
+    // Validasi moderasi komentar oleh admin
+    function validModerateComment() {
+      return request.resource.data.keys().hasOnly(['surveyorName', 'zoneId', 'message', 'status', 'createdAt', 'moderatedAt', 'moderatedBy'])
+        && request.resource.data.keys().hasAll(['surveyorName', 'zoneId', 'message', 'status', 'createdAt', 'moderatedAt', 'moderatedBy'])
+        && request.resource.data.status in ['approved', 'rejected']
+        && request.resource.data.moderatedAt == request.time
+        && request.resource.data.moderatedBy == request.auth.uid
+        && request.resource.data.surveyorName == resource.data.surveyorName
+        && request.resource.data.zoneId == resource.data.zoneId
+        && request.resource.data.message == resource.data.message
+        && request.resource.data.createdAt == resource.data.createdAt;
+    }
+
+    // Hanya pemilik UID dapat memeriksa keberadaan dokumen adminnya sendiri.
+    // Tidak ada mutasi daftar admin melalui SDK browser.
+    match /admins/{uid} {
+      allow get: if signedIn() && request.auth.uid == uid;
+      allow list, create, update, delete: if false;
+    }
+
+    // Koleksi tunggal yang aman untuk dashboard publik: tanpa UID/email/penugasan.
+    match /progressPublic/{zoneId} {
+      allow read: if true;
+      allow create, update: if isAdmin() && validProgress();
+      allow delete: if isAdmin();
+    }
+
+    // Assignment internal - hanya admin
+    match /surveyorAssignments/{assignmentId} {
+      allow read: if isAdmin();
+      allow create: if isAdmin() && validAssignment()
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time;
+      allow update: if isAdmin() && validAssignment()
+        && request.resource.data.updatedAt == request.time;
+      allow delete: if isAdmin();
+    }
+
+    // Data publik surveyor - publik read, admin write
+    match /surveyorPublic/{assignmentId} {
+      allow read: if true;
+      allow create, update: if isAdmin() && validPublicSurveyor()
+        && request.resource.data.updatedAt == request.time;
+      allow delete: if isAdmin();
+    }
+
+    // Komentar surveyor - publik create, publik read approved, admin moderate
+    match /comments/{commentId} {
+      allow read: if (request.auth == null && resource.data.status == 'approved') || isAdmin();
+      allow create: if request.auth == null && validNewComment();
+      allow update: if isAdmin() && validModerateComment();
+      allow delete: if isAdmin();
+    }
+
+    // Struktur lama dikunci sampai audit dan migrasi eksplisit selesai.
+    match /progressZona/{zoneId} {
+      allow read, write: if false;
+    }
+    match /zones/{zoneId} {
+      allow read, write: if false;
+    }
+    match /users/{userId} {
+      allow read, write: if false;
+    }
+  }
+}
