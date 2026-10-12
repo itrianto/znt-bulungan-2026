@@ -1,78 +1,103 @@
 /* ============================================================
-   js/map.js — Peta interaktif ZNT (Langkah 2)
-   - Muat zona.geojson via fetch, tampilkan sebagai poligon
-   - Basemap OpenStreetMap + fitBounds ke seluruh zona
-   - Mode warna: per surveyor / per status (legenda ikut berubah)
-   - Klik zona → popup detail (ID_ZONA, SURVEYOR, STATUS)
-   - Efek hover/highlight pada zona
+   js/map.js - Peta interaktif ZNT
+   - Muat public-zona.geojson, tampilkan sebagai poligon
+   - Mode warna: per surveyor / per status
+   - Surveyor diambil dari Firestore (surveyorPublic), cadangan GeoJSON
+   - Popup dihitung saat dibuka, jadi selalu memakai data terbaru
    ============================================================ */
 
 (function () {
   'use strict';
 
-  // ---------- Konstanta warna ----------
   const WARNA_STATUS = {
-    Belum: '#9aa0a6',   // abu-abu
-    Proses: '#fbbc04',  // kuning
-    Selesai: '#34a853', // hijau
-    Masalah: '#d9534f'  // merah
+    'Belum diverifikasi': '#bdc1c6',
+    Belum: '#9aa0a6',
+    Proses: '#fbbc04',
+    Selesai: '#34a853',
+    Masalah: '#d9534f'
   };
 
-  // 8 warna surveyor yang mudah dibedakan
+  const WARNA_KATEGORI = ['#c46b4e'];
+
   const WARNA_SURVEYOR = [
-    '#e6194b', '#3cb44b', '#4363d8', '#f58231',
-    '#911eb4', '#00a0c6', '#f032e6', '#808000'
+    '#c46b4e', '#e07856', '#f4a261', '#e9c46a',
+    '#8ab17d', '#6a9f8f', '#5d7fa3', '#8b7fa8'
   ];
 
-  // ---------- Variabel modul ----------
+  const BELUM_DITUGASKAN = 'Belum ditugaskan';
+  const WARNA_BELUM_DITUGASKAN = '#d5d8dc';
+
   let peta = null;
   let layerZona = null;
-  let dataZona = null;      // GeoJSON yang sudah dimuat
-  let daftarSurveyor = [];  // daftar nama surveyor unik (terurut)
+  let dataZona = null;
+  let daftarKategori = [];
+  let daftarSurveyor = [];
   let modeWarna = 'surveyor';
-  let filterSurveyor = '';
 
   // ============================================================
-  // FUNGSI DATA (mudah diganti sumbernya: GeoJSON → Firestore)
+  // FUNGSI DATA
   // ============================================================
 
-  // Normalisasi nama surveyor (data memakai "Surveyor")
-  // Fallback "SURVEYOR" agar tahan jika sumber data berubah (misal Firestore)
-  function dapatkanNamaSurveyor(properties) {
-    return properties.Surveyor || properties.SURVEYOR || '(tanpa nama)';
+  function dapatkanKategori(properties) {
+    return properties.KATEGORI || 'Zona publik';
   }
 
-  // Normalisasi status (data belum punya STATUS → default "Belum")
   function dapatkanStatus(properties) {
+    if (properties._FIRESTORE_VERIFIED === false) {
+      return 'Belum diverifikasi';
+    }
     return properties.STATUS || 'Belum';
   }
 
-  // Ambil daftar surveyor unik dari data zona
-  function daftarSurveyorUnik(geojson) {
+  // Prioritas: Firestore (surveyorPublic), lalu GeoJSON, lalu "Belum ditugaskan"
+  function dapatkanSurveyor(properties) {
+    const idZona = String(properties.ID_ZONA || '').trim().toUpperCase();
+    const s = window.zntSurveyor && window.zntSurveyor.getSurveyorByZone(idZona);
+    if (s && s.displayName) return s.displayName;
+    return properties.SURVEYOR || BELUM_DITUGASKAN;
+  }
+
+  function daftarKategoriUnik(geojson) {
     const himpunan = new Set();
-    geojson.features.forEach((fitur) => himpunan.add(dapatkanNamaSurveyor(fitur.properties)));
+    geojson.features.forEach((f) => himpunan.add(dapatkanKategori(f.properties)));
     return Array.from(himpunan).sort();
   }
 
-  // Warna surveyor deterministik berdasarkan indeks di daftar unik
+  // "Belum ditugaskan" tidak ikut daftar, supaya tidak menggeser warna surveyor lain
+  function daftarSurveyorUnik(geojson) {
+    const himpunan = new Set();
+    geojson.features.forEach((f) => {
+      const nama = dapatkanSurveyor(f.properties);
+      if (nama !== BELUM_DITUGASKAN) himpunan.add(nama);
+    });
+    return Array.from(himpunan).sort();
+  }
+
+  function warnaUntukKategori(nama) {
+    const idx = daftarKategori.indexOf(nama);
+    return WARNA_KATEGORI[(idx >= 0 ? idx : 0) % WARNA_KATEGORI.length];
+  }
+
   function warnaUntukSurveyor(nama) {
+    if (nama === BELUM_DITUGASKAN) return WARNA_BELUM_DITUGASKAN;
     const idx = daftarSurveyor.indexOf(nama);
     return WARNA_SURVEYOR[(idx >= 0 ? idx : 0) % WARNA_SURVEYOR.length];
   }
 
-  // Warna poligon sesuai mode warna aktif
   function warnaPoligon(properties) {
     if (modeWarna === 'status') {
       return WARNA_STATUS[dapatkanStatus(properties)] || '#cccccc';
     }
-    return warnaUntukSurveyor(dapatkanNamaSurveyor(properties));
+    if (modeWarna === 'surveyor') {
+      return warnaUntukSurveyor(dapatkanSurveyor(properties));
+    }
+    return warnaUntukKategori(dapatkanKategori(properties));
   }
 
   // ============================================================
   // FUNGSI TAMPILAN
   // ============================================================
 
-  // Gaya poligon Leaflet
   function gayaPoligon(properties) {
     return {
       color: '#333333',
@@ -83,21 +108,33 @@
     };
   }
 
-  // Popup detail saat zona diklik
+  function aman(teks) {
+    const el = document.createElement('div');
+    el.textContent = teks == null ? '' : String(teks);
+    return el.innerHTML;
+  }
+
+  // Dipanggil setiap kali popup dibuka, jadi isinya selalu terbaru
   function buatKontenPopup(properties) {
+    const titik = (properties._FIRESTORE_VERIFIED === false || properties.TITIK_SELESAI == null)
+      ? 'Belum tersedia'
+      : String(properties.TITIK_SELESAI);
+    const surveyor = dapatkanSurveyor(properties);
+    const status = dapatkanStatus(properties);
+    const warnaSt = WARNA_STATUS[status] || '#cccccc';
+
     return (
-      `<strong>${properties.ID_ZONA}</strong><br>` +
-      `Surveyor: ${dapatkanNamaSurveyor(properties)}<br>` +
-      `Status: ${dapatkanStatus(properties)}<br>` +
-      `Titik selesai: ${properties.TITIK_SELESAI || 0}<br>` +
-      `<div class="popup-actions" aria-label="Ubah status zona">` +
-      `<button type="button" data-znt-zona="${properties.ID_ZONA}" data-znt-status="Proses">Mulai</button>` +
-      `<button type="button" data-znt-zona="${properties.ID_ZONA}" data-znt-status="Selesai">Selesai</button></div>`
+      `<div style="min-width:180px;line-height:1.5">` +
+      `<strong style="font-size:1.05em">Zona ${aman(properties.ID_ZONA)}</strong><br>` +
+      `<span style="color:#5f6368">Kategori:</span> ${aman(dapatkanKategori(properties))}<br>` +
+      `<span style="color:#5f6368">Surveyor ditugaskan:</span> <strong>${aman(surveyor)}</strong><br>` +
+      `<span style="color:#5f6368">Status:</span> ` +
+      `<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${warnaSt};margin-right:4px"></span>${aman(status)}<br>` +
+      `<span style="color:#5f6368">Titik selesai:</span> ${aman(titik)}` +
+      `</div>`
     );
   }
 
-  // Efek hover + klik pada setiap zona
-  // Catatan: Leaflet memanggil onEachFeature(feature, layer) — urutan ini penting
   function padaSetiapZona(fitur, layer) {
     const props = fitur.properties;
 
@@ -115,51 +152,54 @@
       }
     });
 
-    layer.bindPopup(buatKontenPopup(props));
+    // Fungsi, bukan teks tetap: isi dihitung ulang saat popup dibuka
+    layer.bindPopup(() => buatKontenPopup(props));
   }
 
-  // Render ulang layer zona ke peta
   function renderLayer() {
     if (layerZona) {
       peta.removeLayer(layerZona);
     }
-    const dataTampil = filterSurveyor ? { ...dataZona, features: dataZona.features.filter((fitur) => dapatkanNamaSurveyor(fitur.properties) === filterSurveyor) } : dataZona;
-    layerZona = L.geoJSON(dataTampil, {
+    layerZona = L.geoJSON(dataZona, {
       style: (fitur) => gayaPoligon(fitur.properties),
       onEachFeature: padaSetiapZona
     });
     layerZona.addTo(peta);
   }
 
-  // Perbarui isi legenda sesuai mode warna aktif
+  function itemLegenda(nama, warna) {
+    return (
+      `<div class="map__legend-item">` +
+      `<span class="map__legend-swatch" style="background:${warna}"></span>${aman(nama)}</div>`
+    );
+  }
+
   function perbaruiLegenda() {
     const wadah = document.getElementById('mapLegend');
+    if (!wadah) return;
     let html = '';
 
     if (modeWarna === 'status') {
       html = Object.entries(WARNA_STATUS)
-        .map(
-          ([nama, warna]) =>
-            `<div class="map__legend-item">` +
-            `<span class="map__legend-swatch" style="background:${warna}"></span>${nama}</div>`
-        )
+        .map(([nama, warna]) => itemLegenda(nama, warna))
         .join('');
-    } else {
+    } else if (modeWarna === 'surveyor') {
       html = daftarSurveyor
-        .map((nama) => {
-          const warna = warnaUntukSurveyor(nama);
-          return (
-            `<div class="map__legend-item">` +
-            `<span class="map__legend-swatch" style="background:${warna}"></span>${nama}</div>`
-          );
-        })
+        .map((nama) => itemLegenda(nama, warnaUntukSurveyor(nama)))
+        .join('');
+      // Tampilkan "Belum ditugaskan" hanya jika memang ada zona seperti itu
+      if (dataZona && dataZona.features.some((f) => dapatkanSurveyor(f.properties) === BELUM_DITUGASKAN)) {
+        html += itemLegenda(BELUM_DITUGASKAN, WARNA_BELUM_DITUGASKAN);
+      }
+    } else {
+      html = daftarKategori
+        .map((nama) => itemLegenda(nama, warnaUntukKategori(nama)))
         .join('');
     }
 
     wadah.innerHTML = html;
   }
 
-  // Ganti mode warna: update gaya tiap poligon + legenda
   function gantiMode(mode) {
     modeWarna = mode;
     if (layerZona) {
@@ -170,28 +210,21 @@
     perbaruiLegenda();
   }
 
-  function saringSurveyor(nama) {
-    filterSurveyor = nama;
-    renderLayer();
-  }
-
-  // Tampilkan pesan error jika data gagal dimuat
   function tampilkanPesanError(pesan) {
     const wadah = document.getElementById('map');
     wadah.innerHTML =
       `<div style="padding:20px;color:#d93025;">` +
-      `Gagal memuat data zona: ${pesan}</div>`;
+      `Gagal memuat data zona: ${aman(pesan)}</div>`;
   }
 
   // ============================================================
   // INISIALISASI & PEMUATAN DATA
   // ============================================================
 
-  // Inisialisasi peta Leaflet + basemap OSM
   function initPeta() {
     peta = L.map('map', {
       zoomControl: true,
-      tap: true // dukungan sentuh di HP
+      tap: true
     });
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -200,39 +233,21 @@
       maxZoom: 19
     }).addTo(peta);
 
-    // Dengarkan perubahan mode warna dari dropdown
     document.getElementById('colorMode').addEventListener('change', (e) => {
       gantiMode(e.target.value);
     });
-    document.addEventListener('click', async (event) => {
-      const tombol = event.target.closest('[data-znt-zona]');
-      if (!tombol) return;
-      const user = window.zntAuth && window.zntAuth.user();
-      if (!(window.firebase && user)) return alert('Masuk dengan akun surveyor terlebih dahulu.');
-      const fitur = dataZona && dataZona.features.find((f) => f.properties.ID_ZONA === tombol.dataset.zntZona);
-      if (!fitur) return;
-      try {
-        await firebase.firestore().collection('progressZona').doc(tombol.dataset.zntZona).set({
-          status: tombol.dataset.zntStatus,
-          titikSelesai: Number(fitur.properties.TITIK_SELESAI || 0),
-          ownerUid: user.uid,
-          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-        }, { merge: true });
-      } catch (err) { alert(`Progres tidak dapat disimpan: ${err.message}`); }
-    });
   }
 
-  // Muat data zona dari file GeoJSON (nanti diganti: Firestore)
-  async function muatDataZona(url = 'data/zona.geojson') {
+  async function muatDataZona(url = 'public-data/public-zona.geojson') {
     try {
       const res = await fetch(url);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       dataZona = await res.json();
 
+      daftarKategori = daftarKategoriUnik(dataZona);
       daftarSurveyor = daftarSurveyorUnik(dataZona);
       renderLayer();
 
-      // Zoom otomatis ke batas seluruh zona
       peta.fitBounds(layerZona.getBounds(), { padding: [20, 20] });
 
       perbaruiLegenda();
@@ -243,20 +258,34 @@
     }
   }
 
+  // Data surveyor berubah (Firestore): hitung ulang warna, legenda, grafik
+  function segarkanSurveyor() {
+    if (!dataZona || !layerZona) return;
+    daftarSurveyor = daftarSurveyorUnik(dataZona);
+    layerZona.eachLayer((l) => {
+      l.setStyle(gayaPoligon(l.feature.properties));
+    });
+    perbaruiLegenda();
+    if (window.grafikZNT && window.grafikZNT.renderSurveyor) {
+      window.grafikZNT.renderSurveyor(dataZona);
+    }
+  }
+
+  document.addEventListener('surveyors:updated', segarkanSurveyor);
+
   // ============================================================
-  // API PUBLIK untuk main.js (Langkah 3)
+  // API PUBLIK
   // ============================================================
   window.petaZNT = {
     muatData: muatDataZona,
     getData: () => dataZona,
     renderUlang: renderLayer,
     gantiMode,
-    filterSurveyor: saringSurveyor,
-    dapatkanNamaSurveyor,
-    dapatkanStatus
+    dapatkanKategori,
+    dapatkanStatus,
+    dapatkanSurveyor
   };
 
-  // ---------- Titik masuk ----------
   function mulai() {
     initPeta();
     muatDataZona();

@@ -7,8 +7,8 @@ Dashboard responsif untuk memantau 353 zona ZNT Bulungan. Frontend statis berada
 - Peta Leaflet dengan 353 poligon dari `docs/data/zona.geojson`.
 - Warna per surveyor atau status, popup detail, legenda, serta layout HP/laptop.
 - Rekap zona dan grafik Chart.js otomatis dari atribut `STATUS`.
-- Fondasi Google Sign-In dan sinkronisasi Cloud Firestore.
-- Aturan Firestore yang membatasi perubahan progres pada pemilik zona; admin harus memiliki custom claim `admin: true`.
+- Dashboard publik hanya membaca koleksi `progressPublic` yang telah disetujui.
+- Halaman admin memakai Google Sign-In; Firestore Rules memverifikasi `admins/{UID}` di server.
 
 ## Menyiapkan data GIS
 
@@ -18,13 +18,13 @@ Data titik belum tersedia, jadi kartu titik belum dihitung sebagai capaian akhir
 
 ## Mengaktifkan Firebase
 
-1. Buat Web App di Firebase Console, aktifkan Google provider pada Authentication, lalu tempel konfigurasi Web App ke `docs/js/firebase-config.js`.
-2. Buat dokumen `zones/{ID_ZONA}` untuk setiap zona dan isi minimal `ownerUid` dengan UID surveyor yang bertanggung jawab. Ini adalah sumber otorisasi backend.
-3. Jalankan `firebase deploy --only firestore:rules,hosting` setelah Firebase CLI dan project dipilih.
-4. Beri custom claim `admin: true` menggunakan Admin SDK/Cloud Function untuk akun admin; jangan menjadikannya atribut yang bisa ditulis dari browser.
+1. Aktifkan Google provider pada Firebase Authentication dan atur Authorized Domains.
+2. Setelah login pertama, buat dokumen privat `admins/{UID}` melalui Firebase Console. SDK browser tidak diberi izin untuk membuat atau mengubah dokumen tersebut.
+3. Audit dan migrasikan progres lama ke `progressPublic` sebelum deploy Rules baru. Jangan menyalin UID, email, owner, atau metadata internal.
+4. Jalankan deploy Rules/hosting hanya setelah file GeoJSON publik hasil sanitasi disetujui.
 
-Koleksi `progressZona` menggunakan ID dokumen yang sama dengan `ID_ZONA` dan berisi `status`, `titikSelesai`, `ownerUid`, serta `updatedAt`.
+Koleksi `progressPublic` menggunakan ID dokumen yang sama dengan `ID_ZONA` dan hanya berisi `status`, `titikSelesai`, serta `updatedAt`.
 
 ## Publikasi GitHub Pages
 
-Push repositori ke GitHub lalu aktifkan Pages dengan sumber branch `main` dan folder `/docs`. Konfigurasi Firebase boleh tampil di frontend; pengamanan tetap berada di Firestore Rules dan daftar `ownerUid` pada koleksi `zones`.
+Jangan aktifkan GitHub Pages atau Firebase Hosting sampai `docs/data` hanya memuat GeoJSON yang telah disanitasi dan disetujui. Konfigurasi Firebase web bukan credential administratif; pengamanan tetap berada pada Firestore Rules dan daftar admin privat.
