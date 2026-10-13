@@ -1,10 +1,19 @@
+# Dependensi dan cache
 node_modules/
 .firebase/
 firebase-debug.log
+
+# Rahasia (jangan pernah di-push)
 .env
+.env.*
+serviceAccount*.json
+*-service-account*.json
+*firebase-adminsdk*.json
 
-znt-bulungan-2026/
-
+# Data mentah lokal (bukan untuk situs)
 data/
-docs/data/
-docs/js/firebase-config.js
+
+# Berkas sistem dan editor
+.DS_Store
+Thumbs.db
+.vscode/
