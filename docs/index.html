@@ -9,13 +9,380 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
   <link rel="stylesheet" href="css/style.css">
+
+  <!-- =========================================================
+       TEMA CLEAR GLASS (GLASSMORPHISM) UNTUK INDEX.HTML
+       Style ini hanya berlaku di file ini, tidak menimpa style.css
+       ========================================================= -->
+  <style>
+    /* Variabel warna tema */
+    :root {
+      --bg-gradient: linear-gradient(135deg, #e0c3fc 0%, #8ec5fc 100%);
+      --glass-bg: rgba(255, 255, 255, 0.45);
+      --glass-bg-strong: rgba(255, 255, 255, 0.55);
+      --glass-border: rgba(255, 255, 255, 0.6);
+      --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+      --text-main: #1c1c1e;
+      --text-sub: #3a3a3c;
+      --input-bg: rgba(255, 255, 255, 0.5);
+      --accent: #007aff;
+      --accent-hover: #0062cc;
+    }
+
+    body.dark,
+    [data-theme="dark"] {
+      --bg-gradient: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      --glass-bg: rgba(30, 30, 35, 0.55);
+      --glass-bg-strong: rgba(30, 30, 35, 0.7);
+      --glass-border: rgba(255, 255, 255, 0.1);
+      --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+      --text-main: #f2f2f7;
+      --text-sub: #aeaeb2;
+      --input-bg: rgba(255, 255, 255, 0.08);
+      --accent: #0a84ff;
+      --accent-hover: #409cff;
+    }
+
+    /* Background halaman */
+    body {
+      background: var(--bg-gradient) !important;
+      background-attachment: fixed !important;
+      color: var(--text-main) !important;
+      transition: background 0.4s ease, color 0.4s ease;
+      min-height: 100vh;
+    }
+
+    /* ====== HEADER JADI PIL KACA ====== */
+    .header {
+      background: var(--glass-bg) !important;
+      backdrop-filter: blur(20px) saturate(180%) !important;
+      -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
+      border: 1px solid var(--glass-border) !important;
+      border-radius: 20px !important;
+      box-shadow: var(--glass-shadow) !important;
+      margin: 20px !important;
+      padding: 16px 24px !important;
+      color: var(--text-main) !important;
+    }
+
+    .header__title,
+    .header__title span {
+      color: var(--text-main) !important;
+    }
+
+    .brand__mark {
+      background: var(--accent) !important;
+    }
+
+    /* Tombol di header (Login Admin & Gelap) */
+    .header__btn,
+    .theme-toggle {
+      background: var(--glass-bg-strong) !important;
+      backdrop-filter: blur(12px) !important;
+      -webkit-backdrop-filter: blur(12px) !important;
+      border: 1px solid var(--glass-border) !important;
+      color: var(--text-main) !important;
+      border-radius: 14px !important;
+      padding: 10px 20px !important;
+      font-weight: 600 !important;
+      text-decoration: none !important;
+      transition: all 0.3s ease !important;
+      display: inline-flex !important;
+      align-items: center !important;
+      gap: 8px !important;
+    }
+
+    .header__btn:hover,
+    .theme-toggle:hover {
+      background: rgba(255, 255, 255, 0.8) !important;
+      transform: translateY(-2px) !important;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1) !important;
+    }
+
+    body.dark .header__btn:hover,
+    body.dark .theme-toggle:hover {
+      background: rgba(255, 255, 255, 0.2) !important;
+    }
+
+    /* ====== PANEL & KARTU RINGKASAN ====== */
+    .panel__header h2,
+    .chart-title {
+      color: var(--text-main) !important;
+    }
+
+    .summary-card {
+      background: var(--glass-bg) !important;
+      backdrop-filter: blur(16px) saturate(180%) !important;
+      -webkit-backdrop-filter: blur(16px) saturate(180%) !important;
+      border: 1px solid var(--glass-border) !important;
+      border-radius: 16px !important;
+      box-shadow: var(--glass-shadow) !important;
+      color: var(--text-main) !important;
+      transition: all 0.3s ease;
+    }
+
+    .summary-card:hover {
+      transform: translateY(-3px);
+      background: var(--glass-bg-strong) !important;
+      box-shadow: 0 12px 36px rgba(0, 0, 0, 0.15) !important;
+    }
+
+    .summary-card__label,
+    .summary-card__value {
+      color: var(--text-main) !important;
+    }
+
+    /* ====== WRAPPER CHART JADI KACA ====== */
+    /* Hanya wrapper-nya yang diberi efek kaca, canvas tetap aman */
+    .chart-wrapper {
+      background: var(--glass-bg) !important;
+      backdrop-filter: blur(16px) saturate(180%) !important;
+      -webkit-backdrop-filter: blur(16px) saturate(180%) !important;
+      border: 1px solid var(--glass-border) !important;
+      border-radius: 16px !important;
+      box-shadow: var(--glass-shadow) !important;
+      padding: 16px !important;
+      margin-bottom: 16px !important;
+      transition: all 0.3s ease;
+    }
+
+    .chart-wrapper:hover {
+      transform: translateY(-2px);
+      background: var(--glass-bg-strong) !important;
+    }
+
+    /* Pastikan canvas tetap terlihat */
+    .chart-wrapper canvas {
+      display: block !important;
+      max-width: 100%;
+    }
+
+    /* Placeholder "Progres Titik Survey" */
+    .placeholder {
+      background: var(--glass-bg) !important;
+      backdrop-filter: blur(16px) !important;
+      -webkit-backdrop-filter: blur(16px) !important;
+      border: 1px solid var(--glass-border) !important;
+      border-radius: 16px !important;
+      padding: 16px !important;
+      color: var(--text-main) !important;
+    }
+
+    .placeholder__text {
+      color: var(--text-sub) !important;
+    }
+
+    /* ====== TABEL (CLEAR GLASS) ====== */
+    .zone-table-card {
+      background: var(--glass-bg) !important;
+      backdrop-filter: blur(16px) saturate(180%) !important;
+      -webkit-backdrop-filter: blur(16px) saturate(180%) !important;
+      border: 1px solid var(--glass-border) !important;
+      border-radius: 20px !important;
+      box-shadow: var(--glass-shadow) !important;
+      padding: 20px !important;
+      margin: 20px 0 !important;
+      color: var(--text-main) !important;
+      transition: all 0.3s ease;
+    }
+
+    .table-scroll {
+      border-radius: 14px !important;
+      border: 1px solid var(--glass-border) !important;
+      background: rgba(255, 255, 255, 0.05) !important;
+      overflow-x: auto;
+    }
+
+    .zone-table th {
+      background: transparent !important;
+      color: var(--text-sub) !important;
+      border-bottom: 1px solid var(--glass-border) !important;
+      font-size: 12px !important;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      font-weight: 600 !important;
+      padding: 12px 16px !important;
+    }
+
+    .zone-table td {
+      background: transparent !important;
+      color: var(--text-main) !important;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.15) !important;
+      padding: 12px 16px !important;
+      font-size: 14px !important;
+    }
+
+    body.dark .zone-table td {
+      border-bottom-color: rgba(255, 255, 255, 0.06) !important;
+    }
+
+    .zone-table tr:last-child td {
+      border-bottom: none !important;
+    }
+
+    .zone-table tr:hover td {
+      background: rgba(255, 255, 255, 0.1) !important;
+    }
+
+    .table-count {
+      color: var(--text-sub) !important;
+    }
+
+    /* ====== FORM KOMENTAR (CLEAR GLASS) ====== */
+    #commentPublicSection > div[style*="background"] {
+      background: rgba(255, 255, 255, 0.15) !important;
+      border: 1px solid var(--glass-border) !important;
+      border-radius: 16px !important;
+      padding: 20px !important;
+    }
+
+    body.dark #commentPublicSection > div[style*="background"] {
+      background: rgba(0, 0, 0, 0.2) !important;
+    }
+
+    #commentPublicSection h4 {
+      color: var(--text-main) !important;
+    }
+
+    /* Label form */
+    #commentPublicSection label {
+      color: var(--text-sub) !important;
+      font-weight: 600 !important;
+    }
+
+    /* Semua input, textarea di halaman ini */
+    #commentSurveyorName,
+    #commentZoneId,
+    #commentMessage {
+      background: var(--input-bg) !important;
+      border: 1px solid var(--glass-border) !important;
+      border-radius: 12px !important;
+      color: var(--text-main) !important;
+      padding: 12px 16px !important;
+      font-family: inherit !important;
+      font-size: 14px !important;
+      outline: none !important;
+      transition: all 0.3s ease !important;
+      width: 100% !important;
+      box-sizing: border-box !important;
+    }
+
+    #commentSurveyorName:focus,
+    #commentZoneId:focus,
+    #commentMessage:focus {
+      background: rgba(255, 255, 255, 0.85) !important;
+      border-color: var(--accent) !important;
+      box-shadow: 0 0 0 4px rgba(0, 122, 255, 0.15) !important;
+    }
+
+    body.dark #commentSurveyorName:focus,
+    body.dark #commentZoneId:focus,
+    body.dark #commentMessage:focus {
+      background: rgba(255, 255, 255, 0.15) !important;
+    }
+
+    /* Tombol kirim komentar */
+    #btnSendComment {
+      background: var(--accent) !important;
+      color: #ffffff !important;
+      border: none !important;
+      padding: 12px 24px !important;
+      border-radius: 12px !important;
+      font-weight: 600 !important;
+      font-size: 14px !important;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    #btnSendComment:hover {
+      background: var(--accent-hover) !important;
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(0, 122, 255, 0.3);
+    }
+
+    /* Pesan status & char counter */
+    #commentFormStatus,
+    #commentPublicSection small {
+      color: var(--text-sub) !important;
+    }
+
+    /* ====== TOMBOL EDIT DI TABEL ====== */
+    .zone-table button {
+      background: transparent !important;
+      color: var(--accent) !important;
+      border: 1.5px solid var(--accent) !important;
+      padding: 6px 16px !important;
+      border-radius: 8px !important;
+      font-weight: 600 !important;
+      font-size: 13px !important;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .zone-table button:hover {
+      background: var(--accent) !important;
+      color: #ffffff !important;
+    }
+
+    /* ====== MAP CONTROLS (biar nyatu dengan tema kaca) ====== */
+    .map__controls {
+      background: var(--glass-bg) !important;
+      backdrop-filter: blur(16px) !important;
+      -webkit-backdrop-filter: blur(16px) !important;
+      border: 1px solid var(--glass-border) !important;
+      border-radius: 14px !important;
+      box-shadow: var(--glass-shadow) !important;
+      color: var(--text-main) !important;
+    }
+
+    .map__control-label {
+      color: var(--text-sub) !important;
+    }
+
+    .map__select {
+      background: var(--input-bg) !important;
+      border: 1px solid var(--glass-border) !important;
+      border-radius: 10px !important;
+      color: var(--text-main) !important;
+      padding: 6px 10px !important;
+    }
+
+    /* Legenda peta */
+    .map__legend {
+      background: var(--glass-bg) !important;
+      backdrop-filter: blur(16px) !important;
+      -webkit-backdrop-filter: blur(16px) !important;
+      border: 1px solid var(--glass-border) !important;
+      border-radius: 14px !important;
+      box-shadow: var(--glass-shadow) !important;
+      color: var(--text-main) !important;
+    }
+
+    /* PENTING: Jangan ganggu ukuran/z-index #map & leaflet */
+    /* Biarkan .map-section dan #map tetap seperti di style.css */
+
+    /* Scrollbar elegan (opsional) */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.3);
+      border-radius: 10px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.5);
+    }
+  </style>
 </head>
 <body>
   <header class="header">
     <div class="brand"><span class="brand__mark">Z</span><h1 class="header__title">ZNT <span>Bulungan</span></h1></div>
-    <div class="header__actions">
+    <div class="header__actions" style="display:flex;align-items:center;gap:12px;">
       <a href="admin.html" class="header__btn">Login Admin</a>
-      <button class="theme-toggle" id="themeToggle" type="button" aria-label="Aktifkan tema gelap" aria-pressed="false"><span aria-hidden="true">&#9681;</span><span class="theme-toggle__text">Gelap</span></button>
+      <button class="header__btn" id="themeToggle" type="button" onclick="toggleTheme()">
+        <span id="themeIcon">🌙</span> <span id="themeText">Gelap</span>
+      </button>
     </div>
   </header>
 
@@ -131,15 +498,31 @@
    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+   <script src="js/firebase-config.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/surveyor.js"></script>
+  <script src="js/comment-public.js"></script>
+  <script src="js/progress.js"></script>
+  <script src="js/map.js"></script>
+  <script src="js/charts.js"></script>
+  <script src="js/main.js"></script>
+  <script>
+    // Toggle theme khusus index.html
+    function toggleTheme() {
+      const body = document.body;
+      const icon = document.getElementById('themeIcon');
+      const text = document.getElementById('themeText');
 
-<script src="./js/firebase-config.js"></script>
-<script src="./js/auth.js"></script>
-<script src="./js/surveyor.js"></script>
-<script src="./js/comment-public.js"></script>
-<script src="./js/progress.js"></script>
-<script src="./js/map.js"></script>
-<script src="./js/charts.js"></script>
-<script src="./js/main.js"></script>
-<script src="./js/theme.js"></script>
+      body.classList.toggle('dark');
+
+      if (body.classList.contains('dark')) {
+        icon.innerText = '☀️';
+        text.innerText = 'Terang';
+      } else {
+        icon.innerText = '🌙';
+        text.innerText = 'Gelap';
+      }
+    }
+  </script>
 </body>
 </html>

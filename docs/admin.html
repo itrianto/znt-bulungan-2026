@@ -8,24 +8,385 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
+
+  <!-- =========================================================
+       TEMA CLEAR GLASS KHUSUS ADMIN.HTML
+       Style ini HANYA berlaku di file ini dan TIDAK menimpa
+       css/style.css supaya index.html tetap aman.
+       ========================================================= -->
+  <style>
+    /* Variabel warna lokal admin */
+    body {
+      background: linear-gradient(135deg, #e0c3fc 0%, #8ec5fc 100%) !important;
+      background-attachment: fixed !important;
+      min-height: 100vh;
+      transition: background 0.4s ease, color 0.4s ease;
+    }
+
+    body.dark {
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%) !important;
+    }
+
+    /* ====== HEADER JADI PIL KACA ====== */
+    .header {
+      background: rgba(255, 255, 255, 0.45) !important;
+      backdrop-filter: blur(20px) saturate(180%) !important;
+      -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
+      border: 1px solid rgba(255, 255, 255, 0.6) !important;
+      border-radius: 20px !important;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08) !important;
+      margin: 20px !important;
+      padding: 16px 24px !important;
+    }
+
+    body.dark .header {
+      background: rgba(30, 30, 35, 0.55) !important;
+      border-color: rgba(255, 255, 255, 0.1) !important;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4) !important;
+    }
+
+    /* Tombol di header (Dashboard Publik & Gelap) */
+    .header__btn {
+      background: rgba(255, 255, 255, 0.55) !important;
+      backdrop-filter: blur(12px) !important;
+      -webkit-backdrop-filter: blur(12px) !important;
+      border: 1px solid rgba(255, 255, 255, 0.6) !important;
+      color: #1c1c1e !important;
+      border-radius: 14px !important;
+      padding: 10px 20px !important;
+      font-weight: 600 !important;
+      text-decoration: none !important;
+      transition: all 0.3s ease !important;
+      display: inline-flex !important;
+      align-items: center !important;
+      gap: 8px !important;
+      cursor: pointer !important;
+    }
+
+    .header__btn:hover {
+      background: rgba(255, 255, 255, 0.85) !important;
+      transform: translateY(-2px) !important;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1) !important;
+    }
+
+    body.dark .header__btn {
+      background: rgba(255, 255, 255, 0.1) !important;
+      border-color: rgba(255, 255, 255, 0.15) !important;
+      color: #f2f2f7 !important;
+    }
+
+    body.dark .header__btn:hover {
+      background: rgba(255, 255, 255, 0.2) !important;
+    }
+
+    /* ====== KARTU ADMIN (CLEAR GLASS) ====== */
+    .admin-auth-card,
+    .zone-table-card {
+      background: rgba(255, 255, 255, 0.45) !important;
+      backdrop-filter: blur(16px) saturate(180%) !important;
+      -webkit-backdrop-filter: blur(16px) saturate(180%) !important;
+      border: 1px solid rgba(255, 255, 255, 0.6) !important;
+      border-radius: 20px !important;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08) !important;
+      color: #1c1c1e !important;
+      transition: all 0.3s ease !important;
+    }
+
+    body.dark .admin-auth-card,
+    body.dark .zone-table-card {
+      background: rgba(30, 30, 35, 0.55) !important;
+      border-color: rgba(255, 255, 255, 0.1) !important;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4) !important;
+      color: #f2f2f7 !important;
+    }
+
+    /* Heading & label di dalam kartu */
+    .admin-auth-card h2,
+    .zone-table-card h2,
+    .chart-title {
+      color: inherit !important;
+    }
+
+    /* ====== FORM PENUGASAN & PROGRES ====== */
+    #assignmentForm,
+    #progressForm {
+      background: rgba(255, 255, 255, 0.2) !important;
+      border: 1px solid rgba(255, 255, 255, 0.5) !important;
+      border-radius: 16px !important;
+      padding: 20px !important;
+      margin: 20px 0 !important;
+    }
+
+    body.dark #assignmentForm,
+    body.dark #progressForm {
+      background: rgba(0, 0, 0, 0.2) !important;
+      border-color: rgba(255, 255, 255, 0.1) !important;
+    }
+
+    #assignmentForm label,
+    #progressForm label {
+      display: block !important;
+      margin-bottom: 6px !important;
+      font-weight: 600 !important;
+      font-size: 14px !important;
+      color: inherit !important;
+    }
+
+    /* ====== INPUT, SELECT, TEXTAREA (CLEAR GLASS) ====== */
+    #adminEmail,
+    #adminPassword,
+    #displayName,
+    #zones,
+    #progressTitik,
+    #progressStatusSelect {
+      width: 100% !important;
+      padding: 12px 16px !important;
+      background: rgba(255, 255, 255, 0.6) !important;
+      border: 1px solid rgba(255, 255, 255, 0.7) !important;
+      border-radius: 12px !important;
+      color: #1c1c1e !important;
+      font-family: inherit !important;
+      font-size: 14px !important;
+      outline: none !important;
+      box-sizing: border-box !important;
+      transition: all 0.3s ease !important;
+    }
+
+    body.dark #adminEmail,
+    body.dark #adminPassword,
+    body.dark #displayName,
+    body.dark #zones,
+    body.dark #progressTitik,
+    body.dark #progressStatusSelect {
+      background: rgba(255, 255, 255, 0.08) !important;
+      border-color: rgba(255, 255, 255, 0.15) !important;
+      color: #f2f2f7 !important;
+    }
+
+    #adminEmail:focus,
+    #adminPassword:focus,
+    #displayName:focus,
+    #zones:focus,
+    #progressTitik:focus,
+    #progressStatusSelect:focus {
+      background: rgba(255, 255, 255, 0.9) !important;
+      border-color: #007aff !important;
+      box-shadow: 0 0 0 4px rgba(0, 122, 255, 0.15) !important;
+    }
+
+    body.dark #adminEmail:focus,
+    body.dark #adminPassword:focus,
+    body.dark #displayName:focus,
+    body.dark #zones:focus,
+    body.dark #progressTitik:focus,
+    body.dark #progressStatusSelect:focus {
+      background: rgba(255, 255, 255, 0.15) !important;
+    }
+
+    /* ====== TOMBOL AKSI ====== */
+    #adminLogin,
+    #btnSaveAssignment,
+    #btnSaveProgress,
+    #btnNewAssignment {
+      background: #007aff !important;
+      color: #ffffff !important;
+      border: none !important;
+      padding: 12px 24px !important;
+      border-radius: 12px !important;
+      font-weight: 600 !important;
+      font-size: 14px !important;
+      cursor: pointer !important;
+      transition: all 0.3s ease !important;
+    }
+
+    #adminLogin:hover,
+    #btnSaveAssignment:hover,
+    #btnSaveProgress:hover,
+    #btnNewAssignment:hover {
+      background: #0062cc !important;
+      transform: translateY(-2px) !important;
+      box-shadow: 0 8px 20px rgba(0, 122, 255, 0.3) !important;
+    }
+
+    #btnCancelForm,
+    #btnCancelProgress,
+    #adminLogout {
+      background: rgba(255, 255, 255, 0.6) !important;
+      color: #1c1c1e !important;
+      border: 1px solid rgba(255, 255, 255, 0.7) !important;
+      padding: 12px 24px !important;
+      border-radius: 12px !important;
+      font-weight: 600 !important;
+      font-size: 14px !important;
+      cursor: pointer !important;
+      transition: all 0.3s ease !important;
+    }
+
+    body.dark #btnCancelForm,
+    body.dark #btnCancelProgress,
+    body.dark #adminLogout {
+      background: rgba(255, 255, 255, 0.1) !important;
+      color: #f2f2f7 !important;
+      border-color: rgba(255, 255, 255, 0.15) !important;
+    }
+
+    #btnCancelForm:hover,
+    #btnCancelProgress:hover,
+    #adminLogout:hover {
+      background: rgba(255, 255, 255, 0.85) !important;
+      transform: translateY(-2px) !important;
+    }
+
+    body.dark #btnCancelForm:hover,
+    body.dark #btnCancelProgress:hover,
+    body.dark #adminLogout:hover {
+      background: rgba(255, 255, 255, 0.2) !important;
+    }
+
+    /* ====== TABEL (CLEAR GLASS) ====== */
+    .table-scroll {
+      overflow-x: auto !important;
+      border-radius: 14px !important;
+      border: 1px solid rgba(255, 255, 255, 0.5) !important;
+      background: rgba(255, 255, 255, 0.1) !important;
+    }
+
+    body.dark .table-scroll {
+      border-color: rgba(255, 255, 255, 0.1) !important;
+      background: rgba(0, 0, 0, 0.15) !important;
+    }
+
+    .zone-table {
+      background: transparent !important;
+    }
+
+    .zone-table th {
+      background: transparent !important;
+      color: #3a3a3c !important;
+      font-size: 12px !important;
+      text-transform: uppercase !important;
+      letter-spacing: 0.5px !important;
+      font-weight: 600 !important;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.5) !important;
+      padding: 14px 16px !important;
+    }
+
+    body.dark .zone-table th {
+      color: #aeaeb2 !important;
+      border-bottom-color: rgba(255, 255, 255, 0.1) !important;
+    }
+
+    .zone-table td {
+      background: transparent !important;
+      color: inherit !important;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.25) !important;
+      padding: 14px 16px !important;
+      font-size: 14px !important;
+    }
+
+    body.dark .zone-table td {
+      border-bottom-color: rgba(255, 255, 255, 0.08) !important;
+    }
+
+    .zone-table tr:last-child td {
+      border-bottom: none !important;
+    }
+
+    .zone-table tr:hover td {
+      background: rgba(255, 255, 255, 0.1) !important;
+    }
+
+    /* Tombol Edit di dalam tabel */
+    .zone-table button {
+      background: transparent !important;
+      color: #007aff !important;
+      border: 1.5px solid #007aff !important;
+      padding: 6px 16px !important;
+      border-radius: 8px !important;
+      font-weight: 600 !important;
+      font-size: 13px !important;
+      cursor: pointer !important;
+      transition: all 0.3s ease !important;
+    }
+
+    .zone-table button:hover {
+      background: #007aff !important;
+      color: #ffffff !important;
+    }
+
+    body.dark .zone-table button {
+      color: #0a84ff !important;
+      border-color: #0a84ff !important;
+    }
+
+    body.dark .zone-table button:hover {
+      background: #0a84ff !important;
+      color: #ffffff !important;
+    }
+
+    /* ====== PESAN STATUS ====== */
+    #formStatus,
+    #progressFormStatus {
+      font-size: 13px !important;
+      font-weight: 500 !important;
+      margin: 8px 0 !important;
+    }
+
+    /* ====== BADGE VERIFIED ====== */
+    .admin-auth-verified__badge {
+      display: inline-flex !important;
+      align-items: center !important;
+      gap: 6px !important;
+      background: rgba(34, 197, 94, 0.15) !important;
+      color: #16a34a !important;
+      padding: 6px 14px !important;
+      border-radius: 20px !important;
+      font-weight: 600 !important;
+      font-size: 13px !important;
+      margin-bottom: 12px !important;
+    }
+
+    /* ====== PASSWORD TOGGLE ====== */
+    .admin-auth-form__password-wrapper {
+      position: relative !important;
+    }
+
+    .admin-auth-form__toggle-password {
+      position: absolute !important;
+      right: 12px !important;
+      top: 50% !important;
+      transform: translateY(-50%) !important;
+      background: transparent !important;
+      border: none !important;
+      cursor: pointer !important;
+      font-size: 16px !important;
+      padding: 4px !important;
+    }
+  </style>
 </head>
 <body>
   <header class="header">
     <div class="brand"><span class="brand__mark">Z</span><h1 class="header__title">Admin <span>ZNT Bulungan</span></h1></div>
-    <a class="header__btn" href="index.html">Dashboard Publik</a>
+    <div class="header__actions" style="display:flex;align-items:center;gap:12px;">
+      <a class="header__btn" href="index.html">Dashboard Publik</a>
+      <button class="header__btn" id="themeToggle" type="button" onclick="toggleTheme()">
+        <span id="themeIcon">🌙</span> <span id="themeText">Gelap</span>
+      </button>
+    </div>
   </header>
+
   <main class="main">
     <!-- Admin Login Card -->
     <section class="admin-auth-card" aria-labelledby="adminTitle">
       <!-- State: Not Logged In -->
       <div id="adminAuthForm" class="admin-auth-form">
         <h2 class="admin-auth-form__title" id="adminTitle">Masuk Admin</h2>
-        
-        <div class="admin-auth-form__group">
-          <label for="adminEmail" class="admin-auth-form__label">Email</label>
-          <input 
-            type="email" 
-            id="adminEmail" 
+
+        <div class="admin-auth-form__group" style="margin-bottom:16px;">
+          <label for="adminEmail" class="admin-auth-form__label" style="display:block;margin-bottom:6px;font-weight:600;font-size:14px;">Email</label>
+          <input
+            type="email"
+            id="adminEmail"
             class="admin-auth-form__input"
             placeholder="admin@example.com"
             autocomplete="email"
@@ -33,17 +394,17 @@
           >
         </div>
 
-        <div class="admin-auth-form__group">
-          <label for="adminPassword" class="admin-auth-form__label">Password</label>
+        <div class="admin-auth-form__group" style="margin-bottom:16px;">
+          <label for="adminPassword" class="admin-auth-form__label" style="display:block;margin-bottom:6px;font-weight:600;font-size:14px;">Password</label>
           <div class="admin-auth-form__password-wrapper">
-            <input 
-              type="password" 
-              id="adminPassword" 
+            <input
+              type="password"
+              id="adminPassword"
               class="admin-auth-form__input"
               placeholder="••••••••"
               autocomplete="current-password"
             >
-            <button 
+            <button
               type="button"
               id="adminTogglePassword"
               class="admin-auth-form__toggle-password"
@@ -56,8 +417,8 @@
 
         <div id="adminStatus" class="admin-auth-form__message"></div>
 
-        <button 
-          type="button" 
+        <button
+          type="button"
           id="adminLogin"
           class="admin-auth-form__submit"
         >
@@ -71,8 +432,8 @@
           <span aria-hidden="true">✓</span> Terverifikasi admin
         </div>
         <p class="admin-auth-verified__email" id="adminEmailDisplay"></p>
-        <button 
-          type="button" 
+        <button
+          type="button"
           id="adminLogout"
           class="admin-auth-verified__logout"
         >
@@ -87,23 +448,23 @@
         <button type="button" id="btnNewAssignment" class="header__btn">+ Penugasan Baru</button>
       </div>
       <p class="placeholder__text" id="assignmentStatus"></p>
-      
-      <div id="assignmentForm" style="display:none;margin:20px 0;padding:20px;background:#f8f9fa;border-radius:8px">
-        <h3 class="chart-title" id="formTitle" style="margin-bottom:16px">Penugasan Surveyor Baru</h3>
+
+      <div id="assignmentForm" style="display:none;">
+        <h3 class="chart-title" id="formTitle" style="margin-bottom:16px;">Penugasan Surveyor Baru</h3>
         <input type="hidden" id="assignmentId">
-        <div style="margin-bottom:12px">
-          <label style="display:block;margin-bottom:4px;font-weight:500">Nama Surveyor</label>
-          <input type="text" id="displayName" placeholder="Nama untuk ditampilkan di dashboard publik" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:4px">
+        <div style="margin-bottom:12px;">
+          <label for="displayName">Nama Surveyor</label>
+          <input type="text" id="displayName" placeholder="Nama untuk ditampilkan di dashboard publik">
         </div>
-        <div style="margin-bottom:12px">
-          <label style="display:block;margin-bottom:4px;font-weight:500">ID Zona (pisah dengan koma)</label>
-          <textarea id="zones" placeholder="Z001, Z002, Z003" rows="3" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:4px"></textarea>
-          <small style="color:#5f6368">Contoh: Z001, Z002, Z003 (kosongkan jika belum ada penugasan)</small>
+        <div style="margin-bottom:12px;">
+          <label for="zones">ID Zona (pisah dengan koma)</label>
+          <textarea id="zones" placeholder="Z001, Z002, Z003" rows="3"></textarea>
+          <small style="display:block;margin-top:6px;font-size:12px;opacity:0.75;">Contoh: Z001, Z002, Z003 (kosongkan jika belum ada penugasan)</small>
         </div>
-        <p id="formStatus" style="margin:8px 0;color:#d93025"></p>
-        <div class="popup-actions">
+        <p id="formStatus"></p>
+        <div class="popup-actions" style="display:flex;gap:12px;margin-top:16px;">
           <button type="button" id="btnSaveAssignment">Simpan</button>
-          <button type="button" id="btnCancelForm" style="background:#5f6368">Batal</button>
+          <button type="button" id="btnCancelForm">Batal</button>
         </div>
       </div>
 
@@ -130,26 +491,26 @@
         <h2 class="chart-title" id="progressTitle">Pembaruan Progres Zona</h2>
       </div>
       <p class="placeholder__text" id="progressStatus"></p>
-      
-      <div id="progressForm" style="display:none;margin:20px 0;padding:20px;background:#f8f9fa;border-radius:8px">
-        <h3 class="chart-title" style="margin-bottom:16px">Edit Progres Zona <span id="editZoneId" style="color:#c46b4e"></span></h3>
-        <div style="margin-bottom:12px">
-          <label style="display:block;margin-bottom:4px;font-weight:500">Status</label>
-          <select id="progressStatusSelect" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:4px">
+
+      <div id="progressForm" style="display:none;">
+        <h3 class="chart-title" style="margin-bottom:16px;">Edit Progres Zona <span id="editZoneId" style="color:#007aff;"></span></h3>
+        <div style="margin-bottom:12px;">
+          <label for="progressStatusSelect">Status</label>
+          <select id="progressStatusSelect">
             <option value="Belum">Belum</option>
             <option value="Proses">Proses</option>
             <option value="Selesai">Selesai</option>
             <option value="Masalah">Masalah</option>
           </select>
         </div>
-        <div style="margin-bottom:12px">
-          <label style="display:block;margin-bottom:4px;font-weight:500">Titik Selesai (0-1509)</label>
-          <input type="number" id="progressTitik" min="0" max="1509" placeholder="Jumlah titik yang sudah selesai" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:4px">
+        <div style="margin-bottom:12px;">
+          <label for="progressTitik">Titik Selesai (0-1509)</label>
+          <input type="number" id="progressTitik" min="0" max="1509" placeholder="Jumlah titik yang sudah selesai">
         </div>
-        <p id="progressFormStatus" style="margin:8px 0;color:#d93025"></p>
-        <div class="popup-actions">
+        <p id="progressFormStatus"></p>
+        <div class="popup-actions" style="display:flex;gap:12px;margin-top:16px;">
           <button type="button" id="btnSaveProgress">Simpan Progres</button>
-          <button type="button" id="btnCancelProgress" style="background:#5f6368">Batal</button>
+          <button type="button" id="btnCancelProgress">Batal</button>
         </div>
       </div>
 
@@ -177,7 +538,7 @@
         <h2 class="chart-title" id="commentTitle">Moderasi Komentar</h2>
       </div>
       <p class="placeholder__text" id="commentStatus"></p>
-      
+
       <div class="table-scroll">
         <table class="zone-table">
           <thead>
@@ -197,6 +558,7 @@
       </div>
     </section>
   </main>
+
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
@@ -206,5 +568,24 @@
   <script src="js/admin-progress.js"></script>
   <script src="js/admin-comment.js"></script>
   <script src="js/admin.js"></script>
+
+  <script>
+    // Toggle theme khusus admin.html
+    function toggleTheme() {
+      const body = document.body;
+      const icon = document.getElementById('themeIcon');
+      const text = document.getElementById('themeText');
+
+      body.classList.toggle('dark');
+
+      if (body.classList.contains('dark')) {
+        icon.innerText = '☀️';
+        text.innerText = 'Terang';
+      } else {
+        icon.innerText = '🌙';
+        text.innerText = 'Gelap';
+      }
+    }
+  </script>
 </body>
 </html>
