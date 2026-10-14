@@ -487,15 +487,48 @@
     </section>
 
     <section class="zone-table-card" id="progressSection" style="display:none" aria-labelledby="progressTitle">
-      <div class="section-heading">
-        <h2 class="chart-title" id="progressTitle">Pembaruan Progres Zona</h2>
+      <div class="section-heading" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
+        <h2 class="chart-title" id="progressTitle">Manajemen & Progres Zona (353 Zona)</h2>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button type="button" id="btnNewZone" class="header__btn">+ Tambah Zona Baru</button>
+          <button type="button" id="btnExportGeoJSON" class="header__btn">📥 Ekspor GeoJSON</button>
+          <button type="button" id="btnResetMaster" class="header__btn" style="background:rgba(217,83,79,0.2) !important;">🔄 Reset Data</button>
+        </div>
       </div>
+
+      <div style="margin:16px 0;display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+        <input type="text" id="zoneSearchInput" placeholder="🔍 Cari ID Zona, Surveyor, atau Penggunaan..." style="flex:1;min-width:240px;padding:10px 16px;border-radius:12px;border:1px solid rgba(255,255,255,0.6);background:rgba(255,255,255,0.5);">
+        <span id="progressCountBadge" class="table-count"></span>
+      </div>
+
       <p class="placeholder__text" id="progressStatus"></p>
 
       <div id="progressForm" style="display:none;">
-        <h3 class="chart-title" style="margin-bottom:16px;">Edit Progres Zona <span id="editZoneId" style="color:#007aff;"></span></h3>
+        <h3 class="chart-title" style="margin-bottom:16px;" id="zoneFormTitle">Edit Data Zona <span id="editZoneId" style="color:#007aff;"></span></h3>
+        <input type="hidden" id="formMode" value="edit">
+
+        <div style="margin-bottom:12px;" id="zoneIdInputGroup">
+          <label for="inputZoneId">ID Zona (Format Z001 - Z999)</label>
+          <input type="text" id="inputZoneId" placeholder="Contoh: Z001">
+        </div>
+
         <div style="margin-bottom:12px;">
-          <label for="progressStatusSelect">Status</label>
+          <label for="progressSurveyorSelect">Surveyor Ditugaskan</label>
+          <select id="progressSurveyorSelect">
+            <option value="">Memuat daftar surveyor...</option>
+          </select>
+        </div>
+
+        <div style="margin-bottom:12px;">
+          <label for="progressPenggunaanSelect">Kategori Penggunaan (PENGGUNAAN)</label>
+          <select id="progressPenggunaanSelect">
+            <option value="Pertanian">Pertanian</option>
+            <option value="Non-Pertanian">Non-Pertanian</option>
+          </select>
+        </div>
+
+        <div style="margin-bottom:12px;">
+          <label for="progressStatusSelect">Status Progres</label>
           <select id="progressStatusSelect">
             <option value="Belum">Belum</option>
             <option value="Proses">Proses</option>
@@ -503,13 +536,15 @@
             <option value="Masalah">Masalah</option>
           </select>
         </div>
+
         <div style="margin-bottom:12px;">
           <label for="progressTitik">Titik Selesai (0-1509)</label>
           <input type="number" id="progressTitik" min="0" max="1509" placeholder="Jumlah titik yang sudah selesai">
         </div>
+
         <p id="progressFormStatus"></p>
         <div class="popup-actions" style="display:flex;gap:12px;margin-top:16px;">
-          <button type="button" id="btnSaveProgress">Simpan Progres</button>
+          <button type="button" id="btnSaveProgress">Simpan Perubahan</button>
           <button type="button" id="btnCancelProgress">Batal</button>
         </div>
       </div>
@@ -520,6 +555,7 @@
             <tr>
               <th>ID Zona</th>
               <th>Surveyor</th>
+              <th>Penggunaan</th>
               <th>Status</th>
               <th>Titik Selesai</th>
               <th>Diperbarui</th>
@@ -527,7 +563,7 @@
             </tr>
           </thead>
           <tbody id="progressTableBody">
-            <tr><td colspan="6" style="text-align:center">Memuat data…</td></tr>
+            <tr><td colspan="7" style="text-align:center">Memuat data zona…</td></tr>
           </tbody>
         </table>
       </div>
@@ -564,6 +600,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
   <script src="js/firebase-config.js"></script>
   <script src="js/auth.js"></script>
+  <script src="js/sync.js"></script>
   <script src="js/admin-surveyor.js"></script>
   <script src="js/admin-progress.js"></script>
   <script src="js/admin-comment.js"></script>

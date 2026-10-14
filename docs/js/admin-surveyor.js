@@ -202,6 +202,13 @@
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
       });
 
+      // Sinkronkan ke zntSync lokal untuk realtime dashboard
+      if (window.zntSync && data.zones) {
+        data.zones.forEach(z => {
+          window.zntSync.saveZoneOverride(z, { Surveyor: data.displayName, SURVEYOR: data.displayName });
+        });
+      }
+
       status.textContent = 'Berhasil diterbitkan';
       setTimeout(() => {
         status.textContent = '';
@@ -219,6 +226,9 @@
 
     const status = document.getElementById('assignmentStatus');
     try {
+      const assignDoc = await db().collection('surveyorAssignments').doc(id).get();
+      const zones = assignDoc.exists ? (assignDoc.data().zones || []) : [];
+
       // 1. Update isPublished di surveyorAssignments
       await db().collection('surveyorAssignments').doc(id).update({
         isPublished: false,
@@ -227,6 +237,13 @@
 
       // 2. Delete dari surveyorPublic
       await db().collection('surveyorPublic').doc(id).delete();
+
+      // Sinkronkan ke zntSync lokal
+      if (window.zntSync && zones.length > 0) {
+        zones.forEach(z => {
+          window.zntSync.saveZoneOverride(z, { Surveyor: 'Belum ditugaskan', SURVEYOR: 'Belum ditugaskan' });
+        });
+      }
 
       status.textContent = 'Publikasi dibatalkan';
       setTimeout(() => {
@@ -247,6 +264,8 @@
     try {
       // 1. Check if published
       const doc = await db().collection('surveyorAssignments').doc(id).get();
+      const zones = (doc.exists && doc.data().zones) ? doc.data().zones : [];
+
       if (doc.exists && doc.data().isPublished) {
         // Delete dari surveyorPublic dulu
         await db().collection('surveyorPublic').doc(id).delete();
@@ -254,6 +273,12 @@
 
       // 2. Delete dari surveyorAssignments
       await db().collection('surveyorAssignments').doc(id).delete();
+
+      if (window.zntSync && zones.length > 0) {
+        zones.forEach(z => {
+          window.zntSync.saveZoneOverride(z, { Surveyor: 'Belum ditugaskan', SURVEYOR: 'Belum ditugaskan' });
+        });
+      }
 
       status.textContent = 'Penugasan dihapus';
       setTimeout(() => {

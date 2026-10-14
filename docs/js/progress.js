@@ -7,7 +7,8 @@
       const perubahan = new Map(); 
       snap.forEach((d) => perubahan.set(d.id, d.data())); 
       data.features.forEach((f) => { 
-        const p = perubahan.get(f.properties.ID_ZONA); 
+        const idZona = f.properties.Zona_ID || f.properties.ID_ZONA;
+        const p = perubahan.get(idZona); 
         if (p) { 
           Object.assign(f.properties, { STATUS: p.status || 'Belum', TITIK_SELESAI: p.titikSelesai, _FIRESTORE_VERIFIED: true }); 
         } else { 
