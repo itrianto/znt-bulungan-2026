@@ -333,8 +333,11 @@
       }
     }
 
-    // Simpan ke Firestore progressPublic jika admin terverifikasi
-    if (db() && isAdminVerified) {
+    // Simpan ke Firestore progressPublic jika admin terverifikasi (jalur permanen, terlihat publik)
+    let syncError = null;
+    if (!(db() && isAdminVerified)) {
+      syncError = 'Firestore tidak aktif';
+    } else {
       try {
         await db().collection('progressPublic').doc(idInput).set({
           status: status,
@@ -342,45 +345,123 @@
           updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         });
       } catch (e) {
+        syncError = e.message;
         console.warn('Gagal sync ke Firestore progressPublic:', e.message);
       }
     }
 
-    statusMsg.textContent = 'Berhasil disimpan dan disinkronkan ke Dashboard Publik!';
-    statusMsg.style.color = '#34a853';
+    if (syncError) {
+      statusMsg.textContent = `Tersimpan lokal saja (browser ini). Gagal sinkron ke Dashboard Publik: ${syncError}`;
+      statusMsg.style.color = '#d93025';
+    } else {
+      statusMsg.textContent = 'Berhasil disimpan dan disinkronkan ke Dashboard Publik!';
+      statusMsg.style.color = '#34a853';
+    }
 
     setTimeout(() => {
       hideForm();
       loadData();
-    }, 900);
+    }, syncError ? 2500 : 900);
   }
 
-  function deleteZone(id) {
-    if (!confirm(`Hapus zona ${id} dari dashboard? Tindakan ini dapat dibatalkan dengan tombol Reset.`)) return;
+  async function deleteZone(id) {
+    if (!confirm(`Hapus zona ${id} dari dashboard? Tindakan ini dapat dibatalkan dengan tombol "Kembalikan ke Data Awal".`)) return;
     if (window.zntSync) {
       window.zntSync.deleteZone(id);
     }
-    loadData();
-  }
-
-  function resetMasterData() {
-    if (!confirm('Kembalikan semua data ke kondisi awal Master_Zona.geojson & surveyor.csv? Semua perubahan lokal akan dihapus.')) return;
-    if (window.zntSync) {
-      window.zntSync.resetToMaster();
+    // Hapus juga data progres zona ini di Firestore agar tidak tampil di dashboard publik
+    if (db() && isAdminVerified) {
+      try {
+        await db().collection('progressPublic').doc(id).delete();
+      } catch (e) {
+        console.warn('Gagal menghapus progressPublic:', e.message);
+      }
     }
     loadData();
   }
 
+  // Hapus semua dokumen progressPublic (batch maksimal 400 operasi per commit)
+  async function hapusSemuaProgressFirestore() {
+    const snap = await db().collection('progressPublic').get();
+    let batch = db().batch();
+    let n = 0;
+    for (const d of snap.docs) {
+      batch.delete(d.ref);
+      n++;
+      if (n % 400 === 0) { await batch.commit(); batch = db().batch(); }
+    }
+    if (n % 400 !== 0) await batch.commit();
+    return n;
+  }
+
+  let sudahEkspor = false;
+
+  async function resetMasterData() {
+    if (!isAdminVerified) {
+      alert('Hanya admin terverifikasi yang dapat mengembalikan data ke kondisi awal.');
+      return;
+    }
+    // Wajib menawarkan backup sebelum data dihapus
+    if (!sudahEkspor) {
+      if (confirm('Anda belum membuat backup pada sesi ini.\n\nOK = Ekspor backup sekarang lalu lanjut.\nBatal = Lanjut tanpa backup.')) {
+        exportGeoJSON();
+        sudahEkspor = true;
+      } else if (!confirm('Lanjut TANPA backup? Data yang sudah dihapus tidak bisa dipulihkan.')) {
+        return;
+      }
+    }
+    if (!confirm('Kembalikan ke Data Awal?\n\nPERINGATAN: semua titik, status, perubahan surveyor, dan zona tambahan/hapus yang sudah diinput akan HILANG, termasuk data di Dashboard Publik (Firestore). Card Zona Siap akan kembali ke 0.')) return;
+
+    if (window.zntSync) {
+      window.zntSync.resetToMaster();
+    }
+    const status = document.getElementById('progressStatus');
+    if (db()) {
+      try {
+        const n = await hapusSemuaProgressFirestore();
+        if (status) status.textContent = `Data dikembalikan ke awal. ${n} data progres Firestore dihapus.`;
+      } catch (e) {
+        console.warn('Gagal membersihkan progressPublic:', e.message);
+        alert(`Data lokal sudah direset, tetapi data Firestore gagal dihapus: ${e.message}`);
+      }
+    }
+    await loadData();
+  }
+
+  function tanggalHariIni() {
+    const d = new Date();
+    const p = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+  }
+
+  // Ekspor backup: nilai terkini (override lokal + Firestore), properti internal "_..." dibuang
   function exportGeoJSON() {
     if (!masterGeoJSON) return;
     if (window.zntSync) {
       window.zntSync.applyOverridesToGeoJSON(masterGeoJSON);
     }
-    const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(masterGeoJSON, null, 2));
+    const terkini = new Map(allZones.map((z) => [z.id, z]));
+    const salinan = JSON.parse(JSON.stringify(masterGeoJSON));
+    salinan.features.forEach((f) => {
+      const p = f.properties || {};
+      Object.keys(p).forEach((k) => { if (k.charAt(0) === '_') delete p[k]; });
+      const id = String(p.Zona_ID || p.ID_ZONA || '').trim().toUpperCase();
+      const z = terkini.get(id);
+      if (z) {
+        p.STATUS = z.status;
+        p.TITIK_SELESAI = z.titikSelesai;
+      }
+    });
+    const blob = new Blob([JSON.stringify(salinan)], { type: 'application/geo+json' });
+    const url = URL.createObjectURL(blob);
     const dlAnchor = document.createElement('a');
-    dlAnchor.setAttribute('href', dataStr);
-    dlAnchor.setAttribute('download', 'Master_Zona_Terkini.geojson');
+    dlAnchor.href = url;
+    dlAnchor.download = `Master_Zona_${tanggalHariIni()}.geojson`;
+    document.body.appendChild(dlAnchor);
     dlAnchor.click();
+    dlAnchor.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    sudahEkspor = true;
   }
 
   function esc(text) {

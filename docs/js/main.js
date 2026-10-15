@@ -13,7 +13,28 @@
     angka('persenSelesai', fitur.length ? `${((selesai / fitur.length) * 100).toFixed(1)}%` : '0%');
     window.grafikZNT.render(data, status);
     renderZonaSiap(fitur);
+    renderProgresTitik(fitur);
     renderTabel(data);
+  }
+  // Kartu Progres Titik: kebutuhan = jumlah zona x MIN_TITIK (dihitung, bukan angka tetap).
+  // Titik di atas MIN_TITIK per zona dihitung sebagai cadangan.
+  function renderProgresTitik(fitur) {
+    const ringkas = document.getElementById('titikRingkas');
+    if (!ringkas) return;
+    let terkumpul = 0, cadangan = 0, kurang = 0, zonaKurang = 0;
+    fitur.forEach((f) => {
+      const t = Math.max(0, Number(f.properties.TITIK_SELESAI) || 0);
+      terkumpul += t;
+      cadangan += Math.max(0, t - MIN_TITIK);
+      if (t < MIN_TITIK) { zonaKurang++; kurang += MIN_TITIK - t; }
+    });
+    const kebutuhan = fitur.length * MIN_TITIK;
+    const fmt = (n) => n.toLocaleString('id-ID');
+    ringkas.textContent = zonaKurang === 0 && fitur.length > 0
+      ? `${fmt(terkumpul)} titik terkumpul. Semua zona sudah memenuhi minimal ${MIN_TITIK} titik.`
+      : `${fmt(terkumpul)} titik terkumpul. ${fmt(zonaKurang)} zona belum mencapai ${MIN_TITIK} titik.`;
+    document.getElementById('titikRinci').textContent =
+      `Kebutuhan minimal ${fmt(kebutuhan)} titik (${fmt(fitur.length)} zona x ${MIN_TITIK}) | kurang ${fmt(kurang)} | cadangan ${fmt(cadangan)}`;
   }
   // Zona siap = zona dengan titik >= 3 (titik berasal dari data admin: TITIK_SELESAI).
   // Titik berlebih = cadangan, bukan masalah.
