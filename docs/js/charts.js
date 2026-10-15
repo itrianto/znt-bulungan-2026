@@ -1,50 +1,46 @@
-/* Grafik otomatis dari properti STATUS dan SURVEYOR pada GeoJSON. */
+/* Grafik otomatis dari properti STATUS (doughnut) dan jumlah zona per surveyor (batang). */
 (function () {
   'use strict';
   const warna = { 'Belum diverifikasi': '#bdc1c6', Belum: '#9aa0a6', Proses: '#fbbc04', Selesai: '#34a853', Masalah: '#d9534f' };
-  const warnaSurveyor = ['#c46b4e', '#e07856', '#f4a261', '#e9c46a', '#8ab17d', '#6a9f8f', '#5d7fa3', '#8b7fa8'];
   const statusList = ['Belum diverifikasi', 'Belum', 'Proses', 'Selesai', 'Masalah'];
-  let donut, surveyor, harian;
+  let donut, surveyor;
 
   function hancurkan(...grafik) { grafik.forEach((g) => { if (g) g.destroy(); }); }
 
-  // Chart 2: Surveyor bar chart (dipisah supaya bisa diperbarui sendiri)
+  // Chart 2: jumlah zona per surveyor.
+  // Sumber daftar, urutan, dan warna = surveyor.csv (sama dengan legenda peta);
+  // jumlah dihitung dari fitur Master_Zona. Surveyor tanpa zona tetap tampil (0).
   function renderSurveyor(data) {
-    if (!window.Chart || !data) return;
-    if (surveyor) { surveyor.destroy(); surveyor = null; }
+    if (!window.Chart || !data || !window.petaZNT) return;
+    hancurkan(surveyor); surveyor = null;
+    const kanvas = document.getElementById('chartRekapSurveyor');
+    if (!kanvas) return;
 
-    const surveyorCount = {};
-    const surveyorStatus = {};
-
-    data.features.forEach((f) => {
+    const daftar = window.petaZNT.daftarSurveyorCSV();
+    if (!daftar.length) return;
+    const jumlah = new Map(daftar.map((s) => [s.nama, 0]));
+    (data.features || []).forEach((f) => {
       const nama = window.petaZNT.dapatkanSurveyor(f.properties);
-      const s = window.petaZNT.dapatkanStatus(f.properties);
-
-      if (!surveyorCount[nama]) {
-        surveyorCount[nama] = 0;
-        surveyorStatus[nama] = { 'Belum diverifikasi': 0, Belum: 0, Proses: 0, Selesai: 0, Masalah: 0 };
-      }
-
-      surveyorCount[nama]++;
-      surveyorStatus[nama][s] = (surveyorStatus[nama][s] || 0) + 1;
+      if (jumlah.has(nama)) jumlah.set(nama, jumlah.get(nama) + 1);
     });
 
-    const surveyorNama = Object.keys(surveyorCount).sort((a, b) => surveyorCount[b] - surveyorCount[a]);
-
-    surveyor = new Chart(document.getElementById('chartRekapSurveyor'), {
+    surveyor = new Chart(kanvas, {
       type: 'bar',
       data: {
-        labels: surveyorNama,
-        datasets: statusList.map((s) => ({
-          label: s,
-          data: surveyorNama.map((n) => surveyorStatus[n][s]),
-          backgroundColor: warna[s]
-        }))
+        labels: daftar.map((s) => s.nama),
+        datasets: [{
+          label: 'Jumlah zona',
+          data: daftar.map((s) => jumlah.get(s.nama)),
+          backgroundColor: daftar.map((s) => s.warna)
+        }]
       },
       options: {
         indexAxis: 'y',
-        scales: { x: { stacked: true }, y: { stacked: true } },
-        plugins: { legend: { position: 'bottom' } },
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { beginAtZero: true, ticks: { precision: 0 } },
+          y: { ticks: { autoSkip: false, font: { size: 10 } } }
+        },
         responsive: true,
         maintainAspectRatio: false
       }
@@ -53,7 +49,7 @@
 
   function render(data, status) {
     if (!window.Chart) return;
-    hancurkan(donut, harian);
+    hancurkan(donut);
 
     // Chart 1: Status doughnut
     donut = new Chart(document.getElementById('chartProgresZona'), {
@@ -74,31 +70,6 @@
 
     // Chart 2: Surveyor bar chart
     renderSurveyor(data);
-
-    // Chart 3: Daily progress (empty placeholder)
-    harian = new Chart(document.getElementById('chartProgresHarian'), {
-      type: 'line',
-      data: {
-        labels: [],
-        datasets: [{
-          label: 'Zona selesai',
-          data: [],
-          borderColor: warna.Selesai,
-          backgroundColor: 'rgba(52,168,83,.15)',
-          fill: true,
-          tension: .3
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: { display: false },
-          title: { display: true, text: 'Riwayat harian belum tersedia', font: { size: 14 }, color: '#5f6368' }
-        },
-        scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
-      }
-    });
   }
 
   window.grafikZNT = { render, renderSurveyor };

@@ -135,8 +135,48 @@
     });
   }
 
-  // Join Master_Zona.geojson dengan surveyor.csv
+  // Normalisasi nama untuk pencocokan (huruf kecil, tanpa tanda baca/spasi ganda)
+  function normalisasiNama(nama) {
+    return String(nama || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  }
+
+  function jarakEdit(a, b) {
+    const dp = Array.from({ length: a.length + 1 }, (_, i) => [i]);
+    for (let j = 1; j <= b.length; j++) dp[0][j] = j;
+    for (let i = 1; i <= a.length; i++) {
+      for (let j = 1; j <= b.length; j++) {
+        dp[i][j] = Math.min(
+          dp[i - 1][j] + 1,
+          dp[i][j - 1] + 1,
+          dp[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)
+        );
+      }
+    }
+    return dp[a.length][b.length];
+  }
+
+  // Cocokkan nama dari GeoJSON/override ke entri surveyor.csv (toleran salah ketik kecil).
+  // Mengembalikan null jika tidak ada yang cocok: tidak pernah membuat surveyor baru.
+  function cocokkanSurveyor(nama) {
+    const kunci = normalisasiNama(nama);
+    if (!kunci) return null;
+    let terbaik = null;
+    let jarakTerbaik = Infinity;
+    let seri = false;
+    for (const s of mapSurveyor.values()) {
+      const kandidat = normalisasiNama(s.nama);
+      if (kandidat === kunci) return s;
+      const d = jarakEdit(kunci, kandidat);
+      if (d < jarakTerbaik) { jarakTerbaik = d; terbaik = s; seri = false; }
+      else if (d === jarakTerbaik) seri = true;
+    }
+    return (jarakTerbaik <= 2 && !seri) ? terbaik : null;
+  }
+
+  // Join Master_Zona.geojson dengan surveyor.csv (surveyor.csv = sumber tunggal daftar surveyor)
   function tautkanSurveyorDanZona(geojson) {
+    // Reset penugasan agar tidak menumpuk saat sinkronisasi ulang
+    mapSurveyor.forEach((s) => { s.zones = []; });
     geojson.features.forEach((f) => {
       const props = f.properties || {};
       if (!props.ID_ZONA && props.Zona_ID) props.ID_ZONA = props.Zona_ID;
@@ -146,18 +186,7 @@
       const namaSurveyor = (props.Surveyor || props.SURVEYOR || '').trim();
       const idZona = String(props.Zona_ID || props.ID_ZONA || '').trim().toUpperCase();
 
-      let surveyorObj = mapSurveyor.get(namaSurveyor.toLowerCase());
-      if (!surveyorObj && namaSurveyor) {
-        // Surveyor baru di GeoJSON otomatis diakomodasi tanpa edit kode
-        const warnaBaru = hasilkanWarnaDinamis(mapSurveyor.size, mapSurveyor.size + 1);
-        surveyorObj = {
-          id: String(mapSurveyor.size + 1),
-          nama: namaSurveyor,
-          warna: warnaBaru,
-          zones: []
-        };
-        mapSurveyor.set(namaSurveyor.toLowerCase(), surveyorObj);
-      }
+      const surveyorObj = cocokkanSurveyor(namaSurveyor);
 
       if (surveyorObj) {
         if (idZona && !surveyorObj.zones.includes(idZona)) {
@@ -171,7 +200,7 @@
       }
     });
 
-    daftarSurveyor = Array.from(mapSurveyor.values()).map((s) => s.nama).sort();
+    daftarSurveyor = Array.from(mapSurveyor.values()).map((s) => s.nama); // urutan surveyor.csv
 
     // Sinkronkan ke API global surveyor jika ada
     if (window.zntSurveyor) {
@@ -212,9 +241,8 @@
     if (properties._surveyorNama) return properties._surveyorNama;
     const sName = (properties.Surveyor || properties.SURVEYOR || '').trim();
     if (sName) {
-      const match = mapSurveyor.get(sName.toLowerCase());
-      if (match) return match.nama;
-      return sName;
+      const match = cocokkanSurveyor(sName);
+      return match ? match.nama : BELUM_DITUGASKAN;
     }
     const idZona = String(properties.Zona_ID || properties.ID_ZONA || '').trim().toUpperCase();
     for (const s of mapSurveyor.values()) {
@@ -230,7 +258,7 @@
   }
 
   function daftarSurveyorUnik(geojson) {
-    return Array.from(mapSurveyor.values()).map((s) => s.nama).sort();
+    return Array.from(mapSurveyor.values()).map((s) => s.nama); // urutan surveyor.csv
   }
 
   const WARNA_KATEGORI_MAP = {
@@ -371,6 +399,9 @@
       `<span>Legenda</span><span class="map__legend-chevron" aria-hidden="true">&#9662;</span></button>` +
       `<div class="map__legend-body" id="mapLegendBody">${html}</div>`;
     wadah.classList.toggle('is-collapsed', !legendaTerbuka);
+    // >8 entri: 2 kolom + scroll (lihat style.css .map__legend--grid)
+    const jumlahItem = (html.match(/map__legend-item/g) || []).length;
+    wadah.classList.toggle('map__legend--grid', jumlahItem > 8);
   }
 
   function gantiMode(mode) {
@@ -527,7 +558,9 @@
     gantiMode,
     dapatkanKategori,
     dapatkanStatus,
-    dapatkanSurveyor
+    dapatkanSurveyor,
+    // Daftar surveyor sesuai urutan & warna surveyor.csv (dipakai grafik)
+    daftarSurveyorCSV: () => Array.from(mapSurveyor.values()).map((s) => ({ nama: s.nama, warna: s.warna }))
   };
 
   function mulai() {

@@ -409,6 +409,14 @@
           <span class="summary-card__label">Total Zona</span>
           <span class="summary-card__value" id="totalZona">-</span>
         </article>
+        <article class="summary-card summary-card--selesai" id="cardZonaSiap" style="grid-column:1 / -1">
+          <span class="summary-card__label">Zona Siap <span id="zonaSiapBadge" class="status-badge status-badge--belum" style="margin-left:6px">-</span></span>
+          <span class="summary-card__value" id="zonaSiapTeks">- / - zona siap</span>
+          <div style="height:8px;margin-top:10px;border-radius:999px;background:rgba(128,128,128,.25);overflow:hidden" role="progressbar" aria-label="Persentase zona siap" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="zonaSiapBarWrap">
+            <div id="zonaSiapBar" style="height:100%;width:0;background:var(--st-selesai,#34a853);transition:width .4s ease"></div>
+          </div>
+          <small id="zonaSiapKet" style="display:block;margin-top:6px;color:var(--text-sub)">Zona siap dihitung = minimal 3 titik</small>
+        </article>
         <article class="summary-card summary-card--selesai">
           <span class="summary-card__label">Selesai</span>
           <span class="summary-card__value" id="zonaSelesai">-</span>
@@ -438,12 +446,9 @@
 
       <div class="chart-wrapper" aria-label="Grafik rekap surveyor">
         <h3 class="chart-title">Zona per Surveyor</h3>
-        <canvas id="chartRekapSurveyor" aria-label="Grafik batang zona per surveyor"></canvas>
-      </div>
-
-      <div class="chart-wrapper" aria-label="Grafik progres harian">
-        <h3 class="chart-title">Progres Harian <span class="chart-title__badge">(data publik statis)</span></h3>
-        <canvas id="chartProgresHarian" aria-label="Grafik garis progres harian"></canvas>
+        <div class="chart-box chart-box--surveyor">
+          <canvas id="chartRekapSurveyor" aria-label="Grafik batang zona per surveyor"></canvas>
+        </div>
       </div>
 
       <div class="placeholder" aria-label="Placeholder progres titik">

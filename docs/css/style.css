@@ -366,6 +366,14 @@ button {
   transform: rotate(-90deg);
 }
 
+.map__legend--grid { max-width: 330px; }
+.map__legend--grid .map__legend-body {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 10px;
+}
+.map__legend--grid.is-collapsed .map__legend-body { display: none; }
+.map__legend--grid .map__legend-item { min-width: 0; line-height: 1.2; }
 .map__legend-body {
   margin-top: 6px;
   max-height: 35vh;
@@ -490,22 +498,34 @@ button {
   font-size: .9rem;
 }
 
-.chart-title__badge {
-  display: inline-block;
-  margin-left: 4px;
-  border: 1px solid var(--glass-border);
-  border-radius: 999px;
-  padding: 2px 6px;
-  color: var(--text-muted);
-  background: rgba(180, 120, 60, .1);
-  font: 500 .65rem var(--font-main);
-  letter-spacing: 0;
-}
-
 .chart-wrapper canvas {
   width: 100% !important;
   max-height: 245px;
   display: block;
+}
+
+/* Container berukuran tetap untuk chart Chart.js (maintainAspectRatio:false) */
+.chart-box {
+  position: relative;
+  width: 100%;
+  height: 300px;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* 12 batang horizontal x ~28px + padding sumbu */
+.chart-box--surveyor { height: 400px; }
+
+.chart-box canvas {
+  position: absolute;
+  inset: 0;
+  width: 100% !important;
+  height: 100% !important;
+  max-height: none;
+}
+
+@media (max-width: 480px) {
+  .chart-box--surveyor { height: 420px; }
 }
 
 .placeholder__text {
