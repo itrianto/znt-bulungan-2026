@@ -510,6 +510,7 @@
         <div style="margin-bottom:12px;" id="zoneIdInputGroup">
           <label for="inputZoneId">ID Zona (Format Z001 - Z999)</label>
           <input type="text" id="inputZoneId" placeholder="Contoh: Z001">
+          <small class="field-error" id="errZoneId" role="alert" style="display:none;color:#d93025;font-size:12px;margin-top:4px;"></small>
         </div>
 
         <div style="margin-bottom:12px;">
@@ -522,24 +523,29 @@
         <div style="margin-bottom:12px;">
           <label for="progressPenggunaanSelect">Kategori Penggunaan (PENGGUNAAN)</label>
           <select id="progressPenggunaanSelect">
+            <option value="">-- Pilih kategori --</option>
             <option value="Pertanian">Pertanian</option>
             <option value="Non-Pertanian">Non-Pertanian</option>
           </select>
+          <small class="field-error" id="errPenggunaan" role="alert" style="display:none;color:#d93025;font-size:12px;margin-top:4px;"></small>
         </div>
 
         <div style="margin-bottom:12px;">
           <label for="progressStatusSelect">Status Progres</label>
           <select id="progressStatusSelect">
+            <option value="">-- Pilih status --</option>
             <option value="Belum">Belum</option>
             <option value="Proses">Proses</option>
             <option value="Selesai">Selesai</option>
             <option value="Masalah">Masalah</option>
           </select>
+          <small class="field-error" id="errStatus" role="alert" style="display:none;color:#d93025;font-size:12px;margin-top:4px;"></small>
         </div>
 
         <div style="margin-bottom:12px;">
           <label for="progressTitik">Titik Selesai (0-1509)</label>
           <input type="number" id="progressTitik" min="0" max="1509" placeholder="Jumlah titik yang sudah selesai">
+          <small class="field-error" id="errTitik" role="alert" style="display:none;color:#d93025;font-size:12px;margin-top:4px;"></small>
         </div>
 
         <p id="progressFormStatus"></p>

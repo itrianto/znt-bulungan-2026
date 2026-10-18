@@ -161,7 +161,7 @@
           f.properties.Surveyor = ov.Surveyor;
           f.properties.SURVEYOR = ov.Surveyor;
         }
-        if (ov.PENGGUNAAN) {
+        if (ov.PENGGUNAAN != null) {
           f.properties.PENGGUNAAN = ov.PENGGUNAAN;
         }
         if (ov.STATUS) {

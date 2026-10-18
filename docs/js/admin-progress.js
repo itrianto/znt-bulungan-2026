@@ -132,7 +132,7 @@
         return {
           id: id,
           surveyor: p.Surveyor || p.SURVEYOR || 'Belum ditugaskan',
-          penggunaan: p.PENGGUNAAN || p.penggunaan || 'Pertanian',
+          penggunaan: p.PENGGUNAAN ?? p.penggunaan ?? 'Pertanian',
           status: firestoreP.status || p.STATUS || p.status || 'Belum',
           titikSelesai: firestoreP.titikSelesai != null ? firestoreP.titikSelesai : (p.TITIK_SELESAI || 0),
           updatedAt: firestoreP.updatedAt || p.updatedAt || null,
@@ -173,8 +173,13 @@
       badge.textContent = `${filtered.length} dari ${allZones.length} zona`;
     }
 
+    // Selamatkan form dari tbody sebelum innerHTML ditimpa (form bisa sedang inline di dalam tabel)
+    parkForm();
+    removeEditRows();
+
     if (filtered.length === 0) {
       tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#5f6368">Tidak ada data zona yang cocok</td></tr>';
+      if (currentEditZone && !isAddMode) document.getElementById('progressForm').style.display = 'none';
       return;
     }
 
@@ -182,34 +187,67 @@
       const statusClass = z.status.toLowerCase().replace(/\s+/g, '');
       const badgeHtml = `<span class="status-badge status-badge--${statusClass}">${esc(z.status)}</span>`;
       return `
-        <tr>
+        <tr data-row-id="${esc(z.id)}">
           <td><strong>${esc(z.id)}</strong></td>
           <td>${esc(z.surveyor)}</td>
-          <td><span style="font-size:0.9em;opacity:0.85;">${esc(z.penggunaan)}</span></td>
+          <td><span style="font-size:0.9em;opacity:0.85;">${esc(z.penggunaan) || '-'}</span></td>
           <td>${badgeHtml}</td>
           <td>${z.titikSelesai}</td>
           <td style="font-size:0.85em;color:#5f6368">${formatDate(z.updatedAt)}</td>
           <td style="white-space:nowrap;">
-            <button class="btn-zone-edit" data-id="${esc(z.id)}" style="background:#007aff;color:#fff;border:none;padding:6px 12px;border-radius:8px;font-weight:600;font-size:12px;cursor:pointer;margin-right:6px;">Edit</button>
-            <button class="btn-zone-delete" data-id="${esc(z.id)}" style="background:rgba(217,83,79,0.85);color:#fff;border:none;padding:6px 12px;border-radius:8px;font-weight:600;font-size:12px;cursor:pointer;">Hapus</button>
+            <button type="button" class="btn-zone-edit" data-id="${esc(z.id)}" style="background:#007aff;color:#fff;border:none;padding:6px 12px;border-radius:8px;font-weight:600;font-size:12px;cursor:pointer;margin-right:6px;">Edit</button>
+            <button type="button" class="btn-zone-delete" data-id="${esc(z.id)}" title="Reset Data Survey (Penggunaan, Status, Titik)" aria-label="Reset Data Survey (Penggunaan, Status, Titik)" style="padding:6px 10px !important;font-size:14px !important;line-height:1;cursor:pointer;">🔄</button>
           </td>
         </tr>
       `;
     }).join('');
 
-    // Pasang event ke tombol edit & hapus
-    tbody.querySelectorAll('.btn-zone-edit').forEach(btn => {
-      btn.addEventListener('click', () => editZone(btn.dataset.id));
-    });
+    // Tombol Edit ditangani lewat event delegation di setupEventListeners()
+    // Pasang event ke tombol hapus (hapus = hanya data titik, polygon aman)
     tbody.querySelectorAll('.btn-zone-delete').forEach(btn => {
-      btn.addEventListener('click', () => deleteZone(btn.dataset.id));
+      btn.addEventListener('click', () => deleteZonePoints(btn.dataset.id));
     });
+
+    // Jika sedang mengedit, pasang kembali form inline di bawah barisnya
+    if (currentEditZone && !isAddMode) placeFormInline(currentEditZone);
   }
 
+  let listenersBound = false;
+
   function setupEventListeners() {
+    // init() bisa dipanggil berkali-kali (perubahan status login); listener cukup dipasang sekali
+    if (listenersBound) return;
+    listenersBound = true;
+
+    // Penanda posisi asal form (dipakai untuk mode tambah & saat form diparkir)
+    const progressForm = document.getElementById('progressForm');
+    if (progressForm && !formAnchor) {
+      formAnchor = document.createComment('progress-form-anchor');
+      progressForm.parentNode.insertBefore(formAnchor, progressForm);
+    }
+
+    // Event delegation: satu listener di tbody, tetap hidup walau isi tabel di-render ulang
+    const progressBody = document.getElementById('progressTableBody');
+    if (progressBody) {
+      progressBody.addEventListener('click', (e) => {
+        const btn = e.target.closest('.btn-zone-edit');
+        if (!btn || !progressBody.contains(btn)) return;
+        editZone(btn.dataset.id);
+      });
+    }
+
     // Tombol Form
     document.getElementById('btnSaveProgress').addEventListener('click', saveZoneData);
     document.getElementById('btnCancelProgress').addEventListener('click', hideForm);
+
+    // Validasi live setelah percobaan submit pertama
+    ['inputZoneId', 'progressSurveyorSelect', 'progressPenggunaanSelect', 'progressStatusSelect', 'progressTitik']
+      .forEach(fid => {
+        const el = document.getElementById(fid);
+        if (!el) return;
+        el.addEventListener('input', revalidateLive);
+        el.addEventListener('change', revalidateLive);
+      });
 
     // Tombol Section Actions
     document.getElementById('btnNewZone').addEventListener('click', showAddZoneForm);
@@ -223,12 +261,73 @@
     }
   }
 
+  // ---- Penempatan form: asal (atas tabel) vs inline di bawah baris ----
+  let formAnchor = null; // penanda posisi asal #progressForm
+
+  function parkForm() {
+    const form = document.getElementById('progressForm');
+    if (!form || !formAnchor || !formAnchor.parentNode) return;
+    if (form.previousSibling !== formAnchor) {
+      formAnchor.parentNode.insertBefore(form, formAnchor.nextSibling);
+    }
+  }
+
+  function removeEditRows() {
+    document.querySelectorAll('.zone-edit-row').forEach(r => r.remove());
+    document.querySelectorAll('tr.zone-row-editing').forEach(r => r.classList.remove('zone-row-editing'));
+  }
+
+  // Taruh form tepat di bawah baris zona. Mengembalikan false bila baris tidak tampil (mis. terfilter).
+  function placeFormInline(id) {
+    const form = document.getElementById('progressForm');
+    const tbody = document.getElementById('progressTableBody');
+    if (!form || !tbody) return false;
+
+    parkForm();
+    removeEditRows();
+
+    const row = Array.from(tbody.querySelectorAll('tr[data-row-id]')).find(r => r.dataset.rowId === id);
+    if (!row) {
+      form.style.display = 'none';
+      return false;
+    }
+
+    const editRow = document.createElement('tr');
+    editRow.className = 'zone-edit-row';
+    const td = document.createElement('td');
+    td.colSpan = 7;
+    td.style.padding = '0 8px';
+    editRow.appendChild(td);
+    row.insertAdjacentElement('afterend', editRow);
+    row.classList.add('zone-row-editing');
+    td.appendChild(form);
+    form.style.display = 'block';
+    return true;
+  }
+
+  // Set judul form tanpa menghilangkan <span id="editZoneId"> (textContent pada h3 akan menghapus span itu)
+  function setFormTitle(text, zoneId) {
+    const title = document.getElementById('zoneFormTitle');
+    if (!title) return;
+    title.textContent = text;
+    const span = document.createElement('span');
+    span.id = 'editZoneId';
+    span.style.color = '#007aff';
+    span.textContent = zoneId || '';
+    title.appendChild(span);
+  }
+
   function showAddZoneForm() {
+    // Tutup form edit inline (jika ada) dan pakai posisi asal form
+    removeEditRows();
+    parkForm();
+    clearFormErrors();
+    document.getElementById('btnSaveProgress').disabled = false;
+
     isAddMode = true;
     currentEditZone = null;
     document.getElementById('progressForm').style.display = 'block';
-    document.getElementById('zoneFormTitle').textContent = 'Tambah Zona Baru';
-    document.getElementById('editZoneId').textContent = '';
+    setFormTitle('Tambah Zona Baru', '');
     
     const idGroup = document.getElementById('zoneIdInputGroup');
     idGroup.style.display = 'block';
@@ -247,11 +346,18 @@
     const zone = allZones.find(z => z.id === id);
     if (!zone) return;
 
+    // Klik Edit lagi pada baris yang sama = tutup (gaya accordion)
+    if (!isAddMode && currentEditZone === zone.id) {
+      hideForm();
+      return;
+    }
+
+    clearFormErrors();
+    document.getElementById('btnSaveProgress').disabled = false;
+
     isAddMode = false;
     currentEditZone = zone.id;
-    document.getElementById('progressForm').style.display = 'block';
-    document.getElementById('zoneFormTitle').textContent = 'Edit Data Zona ';
-    document.getElementById('editZoneId').textContent = zone.id;
+    setFormTitle('Edit Data Zona ', zone.id);
 
     const idGroup = document.getElementById('zoneIdInputGroup');
     idGroup.style.display = 'block';
@@ -264,34 +370,129 @@
     document.getElementById('progressStatusSelect').value = zone.status;
     document.getElementById('progressTitik').value = zone.titikSelesai;
     document.getElementById('progressFormStatus').textContent = '';
-    document.getElementById('progressForm').scrollIntoView({ behavior: 'smooth' });
+
+    // Tampilkan inline di bawah baris; tanpa scroll ke atas
+    if (placeFormInline(zone.id)) {
+      document.getElementById('progressForm').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
   }
 
   function hideForm() {
+    parkForm();
+    removeEditRows();
     document.getElementById('progressForm').style.display = 'none';
+    document.getElementById('btnSaveProgress').disabled = false;
+    clearFormErrors();
     currentEditZone = null;
     isAddMode = false;
   }
 
+  // Format ID Zona: huruf Z + tepat 3 digit (Z001, Z002, Z015, ...)
+  const ZONE_ID_REGEX = /^Z\d{3}$/;
+  const FORM_ERR_IDS = {
+    zoneId: 'errZoneId',
+    penggunaan: 'errPenggunaan',
+    status: 'errStatus',
+    titik: 'errTitik'
+  };
+  let submitAttempted = false;
+
+  function isSurveyorAssigned(surveyor) {
+    const s = String(surveyor || '').trim();
+    return s !== '' && s.toLowerCase() !== 'belum ditugaskan';
+  }
+
+  function readFormValues() {
+    return {
+      zoneId: document.getElementById('inputZoneId').value.trim().toUpperCase(),
+      surveyor: document.getElementById('progressSurveyorSelect').value,
+      penggunaan: document.getElementById('progressPenggunaanSelect').value,
+      status: document.getElementById('progressStatusSelect').value,
+      titikRaw: document.getElementById('progressTitik').value.trim()
+    };
+  }
+
+  // Mengembalikan objek { field: pesanError }. Objek kosong = valid.
+  function validateZoneForm(v) {
+    const errors = {};
+
+    if (!ZONE_ID_REGEX.test(v.zoneId)) {
+      errors.zoneId = 'Format ID Zona harus Z001, Z002, dst.';
+    } else if (isAddMode && allZones.some(z => z.id === v.zoneId)) {
+      errors.zoneId = `ID Zona ${v.zoneId} sudah ada`;
+    }
+
+    const assigned = isSurveyorAssigned(v.surveyor);
+    if (assigned) {
+      if (!v.penggunaan) errors.penggunaan = 'Kategori Penggunaan wajib diisi';
+      if (!v.status) errors.status = 'Status Progress wajib diisi';
+      if (v.titikRaw === '') errors.titik = 'Titik Selesai wajib diisi';
+    }
+
+    if (!errors.titik && v.titikRaw !== '') {
+      const n = Number(v.titikRaw);
+      if (assigned && Number.isFinite(n) && n <= 0) {
+        // Surveyor sudah ditugaskan: 0 dan angka negatif ditolak
+        errors.titik = 'Titik Selesai minimal 1';
+      } else if (!Number.isInteger(n) || n < 0 || n > 1509) {
+        errors.titik = 'Titik Selesai harus bilangan bulat antara 0-1509';
+      }
+    }
+    return errors;
+  }
+
+  function renderFormErrors(errors) {
+    Object.keys(FORM_ERR_IDS).forEach(key => {
+      const el = document.getElementById(FORM_ERR_IDS[key]);
+      if (!el) return;
+      el.textContent = errors[key] || '';
+      el.style.display = errors[key] ? 'block' : 'none';
+    });
+    const inputIds = {
+      zoneId: 'inputZoneId',
+      penggunaan: 'progressPenggunaanSelect',
+      status: 'progressStatusSelect',
+      titik: 'progressTitik'
+    };
+    Object.keys(inputIds).forEach(key => {
+      const input = document.getElementById(inputIds[key]);
+      if (input) input.setAttribute('aria-invalid', errors[key] ? 'true' : 'false');
+    });
+  }
+
+  function clearFormErrors() {
+    submitAttempted = false;
+    renderFormErrors({});
+  }
+
+  // Setelah percobaan submit pertama, validasi berjalan live agar error hilang saat diperbaiki
+  function revalidateLive() {
+    if (!submitAttempted) return;
+    renderFormErrors(validateZoneForm(readFormValues()));
+  }
+
   async function saveZoneData() {
     const statusMsg = document.getElementById('progressFormStatus');
-    const idInput = document.getElementById('inputZoneId').value.trim().toUpperCase();
-    const surveyor = document.getElementById('progressSurveyorSelect').value;
-    const penggunaan = document.getElementById('progressPenggunaanSelect').value;
-    const status = document.getElementById('progressStatusSelect').value;
-    const titik = parseInt(document.getElementById('progressTitik').value, 10) || 0;
+    const v = readFormValues();
 
-    if (!idInput) {
-      statusMsg.textContent = 'ID Zona tidak boleh kosong';
+    submitAttempted = true;
+    const errors = validateZoneForm(v);
+    renderFormErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      statusMsg.textContent = 'Periksa kembali isian yang ditandai.';
       statusMsg.style.color = '#d93025';
       return;
     }
 
-    if (titik < 0 || titik > 1509) {
-      statusMsg.textContent = 'Titik selesai harus antara 0-1509';
-      statusMsg.style.color = '#d93025';
-      return;
-    }
+    const idInput = v.zoneId;
+    const surveyor = v.surveyor;
+    // Surveyor belum ditugaskan: field boleh kosong, pakai nilai bawaan lama
+    const penggunaan = v.penggunaan || 'Pertanian';
+    const status = v.status || 'Belum';
+    const titik = v.titikRaw === '' ? 0 : parseInt(v.titikRaw, 10);
+
+    const saveBtn = document.getElementById('btnSaveProgress');
+    saveBtn.disabled = true;
 
     statusMsg.textContent = 'Menyimpan perubahan…';
     statusMsg.style.color = '#007aff';
@@ -364,20 +565,48 @@
     }, syncError ? 2500 : 900);
   }
 
-  async function deleteZone(id) {
-    if (!confirm(`Hapus zona ${id} dari dashboard? Tindakan ini dapat dibatalkan dengan tombol "Kembalikan ke Data Awal".`)) return;
+  // Reset data survey zona: PENGGUNAAN -> kosong, STATUS -> "Belum", TITIK_SELESAI -> 0.
+  // Polygon (Master_Zona) dan surveyor TIDAK disentuh (hanya merge/update 3 field).
+  // Tidak memanggil zntSync.deleteZone dan tidak menghapus dokumen progressPublic.
+  async function deleteZonePoints(id) {
+    if (!confirm('Yakin mereset data survey (Penggunaan, Status, Titik) di zona ini? Polygon tidak akan terhapus.')) return;
+
+    // Jika zona ini sedang dibuka di form edit, tutup dulu agar tidak menimpa nilai baru
+    if (currentEditZone === id) hideForm();
+
     if (window.zntSync) {
-      window.zntSync.deleteZone(id);
+      // Override lokal: saveZoneOverride menggabungkan (merge) dengan override yang sudah ada,
+      // jadi Surveyor dan properti lain tidak tertimpa. Geometri tidak disertakan.
+      window.zntSync.saveZoneOverride(id, { PENGGUNAAN: '', STATUS: 'Belum', TITIK_SELESAI: 0 });
     }
-    // Hapus juga data progres zona ini di Firestore agar tidak tampil di dashboard publik
+
+    let syncError = null;
     if (db() && isAdminVerified) {
       try {
-        await db().collection('progressPublic').doc(id).delete();
+        const ref = db().collection('progressPublic').doc(id);
+        const snap = await ref.get();
+        // update() hanya mengubah status, titikSelesai & updatedAt (penggunaan tidak disimpan di Firestore).
+        // Bila dokumen belum ada, tidak ada data di Firestore yang perlu direset.
+        if (snap.exists) {
+          await ref.update({
+            status: 'Belum',
+            titikSelesai: 0,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+          });
+        }
       } catch (e) {
-        console.warn('Gagal menghapus progressPublic:', e.message);
+        syncError = e.message;
+        console.warn('Gagal mereset progressPublic di Firestore:', e.message);
       }
     }
-    loadData();
+
+    await loadData();
+    const statusEl = document.getElementById('progressStatus');
+    if (statusEl) {
+      statusEl.textContent = syncError
+        ? `Data survey zona ${id} direset lokal saja. Gagal sinkron ke Firestore: ${syncError}`
+        : `Data survey zona ${id} direset (Penggunaan kosong, Status Belum, Titik 0). Polygon tetap utuh.`;
+    }
   }
 
   // Hapus semua dokumen progressPublic (batch maksimal 400 operasi per commit)
