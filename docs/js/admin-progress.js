@@ -103,7 +103,7 @@
       const resGeo = await fetchWithFallback([
         '../data/geojson/Master_Zona.geojson',
         'data/geojson/Master_Zona.geojson',
-        'public-data/Master_Zona.geojson',
+        'public-data/Master_Zona.geojson?v=357',
         'public-data/public-zona.geojson'
       ]);
       masterGeoJSON = await resGeo.json();

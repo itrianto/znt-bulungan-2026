@@ -30,7 +30,7 @@
   }
 
   function loadFromJson() {
-    fetch('public-data/surveyor-zones.json')
+    fetch('public-data/surveyor-zones.json?v=357')
       .then(response => response.json())
       .then(data => {
         surveyorData = data.surveyors || [];
