@@ -9,8 +9,8 @@ Write-Host "Generating surveyor-zone mapping..."
 $surveyorData = @{}
 
 foreach ($feature in $master.features) {
-    $surveyor = $feature.properties.Surveyor
-    $zoneId = $feature.properties.ID_ZONA
+    $surveyor = if ($feature.properties.Surveyor) { $feature.properties.Surveyor } else { $feature.properties.SURVEYOR }
+    $zoneId = if ($feature.properties.Zona_ID) { $feature.properties.Zona_ID } else { $feature.properties.ID_ZONA }
     
     if (-not $surveyorData.ContainsKey($surveyor)) {
         $surveyorData[$surveyor] = @{

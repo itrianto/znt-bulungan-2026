@@ -64,7 +64,8 @@
     document.getElementById('zoneTableCount').textContent = `${fitur.length} zona`;
     document.getElementById('zoneTableBody').innerHTML = fitur.slice(0, 10).map((f) => {
       const p = f.properties, status = window.petaZNT.dapatkanStatus(p), kelas = status.toLowerCase().replace(/\s+/g, '');
-      return `<tr><td>${aman(p.ID_ZONA)}</td><td><span class="status-badge status-badge--${kelas}">${aman(status)}</span></td></tr>`;
+      const id = p.Zona_ID || p.ID_ZONA || '-';
+      return `<tr><td>${aman(id)}</td><td><span class="status-badge status-badge--${kelas}">${aman(status)}</span></td></tr>`;
     }).join('');
   }
   document.addEventListener('znt:data-ready', (event) => hitung(event.detail));

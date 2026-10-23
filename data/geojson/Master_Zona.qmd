@@ -1,6 +1,6 @@
 <!DOCTYPE qgis PUBLIC 'http://mrcc.com/qgis.dtd' 'SYSTEM'>
 <qgis version="3.44.5-Solothurn">
-  <identifier>simpel</identifier>
+  <identifier>simpelz</identifier>
   <parentidentifier></parentidentifier>
   <language>IND</language>
   <type>dataset</type>
@@ -29,7 +29,7 @@ Beberapa catatan tambahan dalam Geodatabase data batas wilayah administrasi desa
   <history>Data ini merupakan kompilasi data batas wilayah administrasi desa/kelurahan dari berbagai sumber</history>
   <history>Data source: Sumber data pada geodatabase ini antara lain data batas desa/kelurahan hasil kegiatan Ajudikasi Batas Desa tahun 2013-2015, Delineasi Batas Wilayah Administrasi desa secara kartometrik tahun 2016-2017, Delineasi batas wilayah administrasi desa secara kartometrik tanpa kesepakatan tahun 2018-2019, sinkronisasi data batas desa hasil penetapan Pemerintah Daerah mengacu pada standar nasional Katalog Unsur Geografi Indonesia (KUGI) tahun 2019, Kesepakatan Teknis batas wilayah administrasi desa tahun 2020, Kesepakatan Teknis Batas Wilayah Administrasi Desa/Kelurahan Tahun 2021, Verifikasi Teknis Batas Wilayah Administrasi Desa/Kelurahan Tahun 2022, Verifikasi Teknis Batas Wilayah Administrasi Desa/Kelurahan sebagian Tahun 2023, Asistensi Peta Dasar RDTR/RTRW sebagian Tahun 2023, Delineasi batas wilayah administrasi desa melalui kegiatan perjanjian Kerja Sama antara BIG dengan Pemerintah Daerah baik melalui PKS maupun PNBP, data batas wilayah administrasi desa/kelurahan dari Pemerintah Daerah, dan data batas wilayah administrasi desa dari Peta Rupa Bumi Indonesia. Geodatabase ini dibuat menggunakan Garis Pantai Edisi Tahun 2022 yang merupakan pemutakhiran garis pantai penetapan tahun 2021 bersumber dari Pusat Pemetaan Kelautan dan Lingkungan Pantai.</history>
   <dates>
-    <date type="Revised" value="2023-09-28T00:00:00"/>
+    <date value="2023-09-28T00:00:00" type="Revised"/>
   </dates>
   <fees></fees>
   <constraints type="Limitations of use">Data ini tidak dapat digunakan sebagai referensi resmi selama belum tersedia data batas desa/kelurahan yang sudah definitif</constraints>
@@ -48,12 +48,6 @@ Beberapa catatan tambahan dalam Geodatabase data batas wilayah administrasi desa
     </spatialrefsys>
   </crs>
   <extent>
-    <spatial minx="94.97191104600000244" miny="-11.00761537700000048" dimensions="2" crs="EPSG:4326" maxy="6.07683220399999957" maxz="0" maxx="141.02004178900000397" minz="0"/>
-    <temporal>
-      <period>
-        <start></start>
-        <end></end>
-      </period>
-    </temporal>
+    <spatial minx="94.97191104600010192" maxz="0" miny="-11.00761537700000048" crs="EPSG:4326" maxx="141.02004178900000397" minz="0" maxy="6.0768322040000502" dimensions="2"/>
   </extent>
 </qgis>

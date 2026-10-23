@@ -142,6 +142,8 @@
 
       renderTable();
       status.textContent = `${allZones.length} zona siap dikelola.`;
+      const titleBadge = document.getElementById('progressZoneTotalBadge');
+      if (titleBadge) titleBadge.textContent = `(${allZones.length} Zona)`;
     } catch (err) {
       status.textContent = `Error memuat data: ${err.message}`;
       console.error(err);

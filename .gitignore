@@ -11,7 +11,9 @@ serviceAccount*.json
 *firebase-adminsdk*.json
 
 # Data mentah lokal (bukan untuk situs)
-data/
+data/raw/
+data/private/
+*.bak
 
 # Berkas sistem dan editor
 .DS_Store
