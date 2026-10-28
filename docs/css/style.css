@@ -288,30 +288,84 @@ button {
   top: 12px;
   right: 12px;
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
+  min-width: 190px;
+  max-width: 250px;
+  padding: 8px 12px;
+  border-radius: 14px;
+  transition: all 0.25s ease;
+}
+
+.map__controls.is-collapsed {
+  width: auto;
+  min-width: 0;
+  padding: 6px 12px;
+}
+
+.map__controls-toggle {
+  display: flex;
   align-items: center;
-  gap: 7px;
-  max-width: calc(100% - 24px);
-  padding: 8px;
-  border-radius: 13px;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  min-height: 28px;
+  padding: 2px 0;
+  background: none;
+  border: 0;
+  font: inherit;
+  font-weight: 700;
+  font-size: .78rem;
+  color: inherit;
+  cursor: pointer;
+}
+
+.map__controls-chevron {
+  display: inline-block;
+  font-size: .85rem;
+  transition: transform 0.2s ease;
+}
+
+.map__controls.is-collapsed .map__controls-chevron {
+  transform: rotate(-90deg);
+}
+
+.map__controls-body {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.map__controls.is-collapsed .map__controls-body {
+  display: none;
+}
+
+.map__control-row {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
 }
 
 .map__control-label {
-  padding-left: 4px;
+  padding-left: 2px;
   color: var(--text-muted);
-  font-size: .72rem;
+  font-size: .70rem;
   font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
 }
 
 .map__select {
-  min-height: 34px;
-  max-width: 145px;
+  min-height: 32px;
+  width: 100%;
+  max-width: none;
   padding: 0 8px;
   color: var(--text);
   border: 1px solid var(--glass-border);
   border-radius: 8px;
   background: var(--input-bg);
   font-size: .75rem;
+  outline: none;
 }
 
 .map__legend {

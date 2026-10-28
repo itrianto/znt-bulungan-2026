@@ -25,6 +25,15 @@
   let peta = null;
   let layerZona = null;
   let dataZona = null;
+  let layerOSM = null;
+  let layerSatelit = null;
+  let basemapAktif = 'osm';
+
+  let dataTitik = [];
+  let layerTitik = null;
+  let filterTitik = 'all'; // 'all' | 'pertanian' | 'non_pertanian'
+  let canvasRendererTitik = null;
+
   let daftarKategori = [];
   let daftarSurveyor = [];
   let mapSurveyor = new Map();
@@ -118,6 +127,43 @@
       list.push({ id, nama, warna, zonaId });
     }
 
+    return list;
+  }
+
+  // Parser CSV untuk Sebaran Titik Survei (pertanian & non-pertanian)
+  function parseTitikCSV(csvText, jenis) {
+    if (csvText.charCodeAt(0) === 0xfeff) csvText = csvText.slice(1);
+    const lines = csvText.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+    if (lines.length < 2) return [];
+
+    const header = lines[0].split(',').map((h) => h.trim().toLowerCase());
+    const idxNo = header.findIndex((h) => h.includes('sampel') || h.includes('no') || h.includes('id'));
+    const idxSurveyor = header.findIndex((h) => h.includes('penilai') || h.includes('surveyor') || h.includes('nama'));
+    const idxLat = header.findIndex((h) => h === 'lat' || h.includes('latitude') || h.includes('lintang') || h === 'y');
+    const idxLon = header.findIndex((h) => h === 'lon' || h.includes('longitude') || h.includes('bujur') || h === 'x');
+    const idxStatus = header.findIndex((h) => h.includes('status'));
+
+    const list = [];
+    for (let i = 1; i < lines.length; i++) {
+      const cols = lines[i].split(',').map((c) => c.trim());
+      if (cols.length < 4) continue;
+      const lat = parseFloat(idxLat >= 0 ? cols[idxLat] : cols[2]);
+      const lon = parseFloat(idxLon >= 0 ? cols[idxLon] : cols[3]);
+      if (isNaN(lat) || isNaN(lon)) continue;
+
+      const noSampel = (idxNo >= 0 ? cols[idxNo] : cols[0]) || String(i);
+      const surveyor = (idxSurveyor >= 0 ? cols[idxSurveyor] : cols[1]) || '-';
+      const status = (idxStatus >= 0 ? cols[idxStatus] : cols[4]) || 'Disetujui';
+
+      list.push({
+        noSampel,
+        surveyor,
+        lat,
+        lon,
+        status,
+        jenis
+      });
+    }
     return list;
   }
 
@@ -295,6 +341,15 @@
   // ============================================================
 
   function gayaPoligon(properties) {
+    if (modeWarna === 'titik') {
+      return {
+        color: '#2c3e50',
+        weight: 1.2,
+        opacity: 0.6,
+        fillColor: '#95a5a6',
+        fillOpacity: 0.12
+      };
+    }
     return {
       color: '#333333',
       weight: 1,
@@ -337,6 +392,10 @@
 
     layer.on({
       mouseover: (e) => {
+        if (modeWarna === 'titik') {
+          e.target.setStyle({ weight: 2, fillOpacity: 0.18 });
+          return;
+        }
         e.target.setStyle({ weight: 3, fillOpacity: 0.85 });
         e.target.bringToFront();
       },
@@ -344,13 +403,17 @@
         layerZona.resetStyle(e.target);
       },
       click: (e) => {
+        if (modeWarna === 'titik') return;
         layerZona.resetStyle();
         e.target.setStyle({ weight: 3, fillOpacity: 0.85 });
       }
     });
 
-    // Fungsi, bukan teks tetap: isi dihitung ulang saat popup dibuka
-    layer.bindPopup(() => buatKontenPopup(props));
+    // Fungsi, bukan teks tetap: isi dihitung ulang saat popup dibuka (nonaktif di mode titik agar popup titik diprioritaskan)
+    layer.bindPopup(() => {
+      if (modeWarna === 'titik') return null;
+      return buatKontenPopup(props);
+    });
   }
 
   function renderLayer() {
@@ -371,12 +434,148 @@
     );
   }
 
+  // ============================================================
+  // FUNGSI SEBARAN TITIK SURVEI
+  // ============================================================
+
+  function dapatkanTitikTampil() {
+    if (filterTitik === 'pertanian') {
+      return dataTitik.filter((t) => t.jenis === 'Pertanian');
+    }
+    if (filterTitik === 'non_pertanian') {
+      return dataTitik.filter((t) => t.jenis === 'Non-Pertanian');
+    }
+    return dataTitik;
+  }
+
+  function buatKontenPopupTitik(t) {
+    const isDisetujui = String(t.status).toLowerCase().includes('setuju');
+    const badgeColor = isDisetujui ? '#34a853' : '#d9534f';
+    return (
+      `<div style="min-width:185px;line-height:1.5">` +
+      `<strong style="font-size:1.05em">Sampel #${aman(t.noSampel)}</strong><br>` +
+      `<span style="color:#5f6368">Penilai Tanah:</span> <strong>${aman(t.surveyor)}</strong><br>` +
+      `<span style="color:#5f6368">Jenis:</span> <strong>${aman(t.jenis)}</strong><br>` +
+      `<span style="color:#5f6368">Status:</span> ` +
+      `<span style="display:inline-block;padding:2px 8px;border-radius:6px;font-size:0.82em;font-weight:600;color:#fff;background:${badgeColor}">${aman(t.status)}</span><br>` +
+      `<span style="color:#5f6368;font-size:0.85em">📍 ${t.lat.toFixed(6)}, ${t.lon.toFixed(6)}</span>` +
+      `</div>`
+    );
+  }
+
+  function renderTitikLayer() {
+    if (!peta) return;
+    if (layerTitik) {
+      peta.removeLayer(layerTitik);
+      layerTitik.clearLayers();
+    } else {
+      layerTitik = L.layerGroup();
+    }
+
+    if (modeWarna === 'titik') {
+      const list = dapatkanTitikTampil();
+      list.forEach((t) => {
+        const isDisetujui = String(t.status).toLowerCase().includes('setuju');
+        const badgeColor = isDisetujui ? '#34a853' : '#d9534f';
+        let marker;
+
+        if (t.jenis === 'Pertanian') {
+          // Bentuk LINGKARAN untuk Pertanian
+          const circleIcon = L.divIcon({
+            className: 'custom-point-marker point-circle',
+            html: `<svg width="14" height="14" viewBox="0 0 16 16" style="display:block;cursor:pointer;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.45));">
+              <circle cx="8" cy="8" r="6" fill="${badgeColor}" stroke="#ffffff" stroke-width="1.8"/>
+            </svg>`,
+            iconSize: [14, 14],
+            iconAnchor: [7, 7],
+            popupAnchor: [0, -8]
+          });
+          marker = L.marker([t.lat, t.lon], { icon: circleIcon, pane: 'titikPane' });
+        } else {
+          // Bentuk SEGITIGA untuk Non-Pertanian
+          const triangleIcon = L.divIcon({
+            className: 'custom-point-marker point-triangle',
+            html: `<svg width="16" height="16" viewBox="0 0 16 16" style="display:block;cursor:pointer;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.5));">
+              <polygon points="8,1 15.5,14.5 0.5,14.5" fill="${badgeColor}" stroke="#ffffff" stroke-width="1.8" stroke-linejoin="round"/>
+            </svg>`,
+            iconSize: [16, 16],
+            iconAnchor: [8, 8],
+            popupAnchor: [0, -9]
+          });
+          marker = L.marker([t.lat, t.lon], { icon: triangleIcon, pane: 'titikPane' });
+        }
+
+        marker.bindPopup(() => buatKontenPopupTitik(t));
+        layerTitik.addLayer(marker);
+      });
+
+      layerTitik.addTo(peta);
+    }
+  }
+
+  function gantiFilterTitik(kategori) {
+    filterTitik = kategori;
+    renderTitikLayer();
+    perbaruiLegenda();
+  }
+
+  async function muatDataTitik() {
+    try {
+      const urlsPertanian = [
+        '../data/geojson/sebaran_titik/titik_pertanian.csv',
+        'data/geojson/sebaran_titik/titik_pertanian.csv',
+        'public-data/sebaran_titik/titik_pertanian.csv?v=2'
+      ];
+      const urlsNonPertanian = [
+        '../data/geojson/sebaran_titik/titik_non_pertanian.csv',
+        'data/geojson/sebaran_titik/titik_non_pertanian.csv',
+        'public-data/sebaran_titik/titik_non_pertanian.csv?v=2'
+      ];
+
+      const [resP, resNP] = await Promise.all([
+        fetchWithFallback(urlsPertanian).then((r) => r.text()).catch((e) => { console.warn(e); return ''; }),
+        fetchWithFallback(urlsNonPertanian).then((r) => r.text()).catch((e) => { console.warn(e); return ''; })
+      ]);
+
+      const titikP = resP ? parseTitikCSV(resP, 'Pertanian') : [];
+      const titikNP = resNP ? parseTitikCSV(resNP, 'Non-Pertanian') : [];
+
+      dataTitik = [...titikP, ...titikNP];
+
+      const optAll = document.querySelector('#pointFilterSelect option[value="all"]');
+      const optP = document.querySelector('#pointFilterSelect option[value="pertanian"]');
+      const optNP = document.querySelector('#pointFilterSelect option[value="non_pertanian"]');
+      if (optAll) optAll.textContent = `Semua Titik (${dataTitik.length})`;
+      if (optP) optP.textContent = `Pertanian (${titikP.length})`;
+      if (optNP) optNP.textContent = `Non-Pertanian (${titikNP.length})`;
+
+      renderTitikLayer();
+    } catch (err) {
+      console.warn('Data sebaran titik survei belum tersedia:', err.message);
+    }
+  }
+
+  // ============================================================
+  // LEGENDA & KONTROL PETA
+  // ============================================================
+
   function perbaruiLegenda() {
     const wadah = document.getElementById('mapLegend');
     if (!wadah) return;
     let html = '';
 
-    if (modeWarna === 'status') {
+    if (modeWarna === 'titik') {
+      const titikTampil = dapatkanTitikTampil();
+      const disetujuiCount = titikTampil.filter((t) => String(t.status).toLowerCase().includes('setuju')).length;
+      const ditolakCount = titikTampil.filter((t) => String(t.status).toLowerCase().includes('tolak')).length;
+      html =
+        `<div style="font-weight:700;margin-bottom:6px;font-size:0.75rem;color:var(--text-sub)">STATUS TITIK (${titikTampil.length})</div>` +
+        itemLegenda(`Disetujui (${disetujuiCount})`, '#34a853') +
+        itemLegenda(`Ditolak (${ditolakCount})`, '#d9534f') +
+        `<div style="font-weight:700;margin:8px 0 4px;font-size:0.75rem;color:var(--text-sub)">BENTUK JENIS</div>` +
+        `<div class="map__legend-item"><span style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;margin-right:7px;"><svg width="14" height="14" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="#34a853" stroke="#fff" stroke-width="1.8"/></svg></span>Pertanian (Lingkaran)</div>` +
+        `<div class="map__legend-item"><span style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;margin-right:7px;"><svg width="14" height="14" viewBox="0 0 16 16"><polygon points="8,1 15.5,14.5 0.5,14.5" fill="#34a853" stroke="#fff" stroke-width="1.8"/></svg></span>Non-Pertanian (Segitiga)</div>`;
+    } else if (modeWarna === 'status') {
       html = Object.entries(WARNA_STATUS)
         .map(([nama, warna]) => itemLegenda(nama, warna))
         .join('');
@@ -384,7 +583,6 @@
       html = daftarSurveyor
         .map((nama) => itemLegenda(nama, warnaUntukSurveyor(nama)))
         .join('');
-      // Tampilkan "Belum ditugaskan" hanya jika memang ada zona seperti itu
       if (dataZona && dataZona.features.some((f) => dapatkanSurveyor(f.properties) === BELUM_DITUGASKAN)) {
         html += itemLegenda(BELUM_DITUGASKAN, WARNA_BELUM_DITUGASKAN);
       }
@@ -399,19 +597,34 @@
       `<span>Legenda</span><span class="map__legend-chevron" aria-hidden="true">&#9662;</span></button>` +
       `<div class="map__legend-body" id="mapLegendBody">${html}</div>`;
     wadah.classList.toggle('is-collapsed', !legendaTerbuka);
-    // >8 entri: 2 kolom + scroll (lihat style.css .map__legend--grid)
     const jumlahItem = (html.match(/map__legend-item/g) || []).length;
     wadah.classList.toggle('map__legend--grid', jumlahItem > 8);
   }
 
   function gantiMode(mode) {
     modeWarna = mode;
+
+    const pointFilterRow = document.getElementById('pointFilterRow');
+    if (pointFilterRow) pointFilterRow.style.display = (mode === 'titik' ? 'flex' : 'none');
+
     if (layerZona) {
       layerZona.eachLayer((lapisan) => {
         lapisan.setStyle(gayaPoligon(lapisan.feature.properties));
       });
     }
+    renderTitikLayer();
     perbaruiLegenda();
+  }
+
+  function gantiBasemap(tipe) {
+    basemapAktif = tipe;
+    if (tipe === 'satellite') {
+      if (layerOSM && peta.hasLayer(layerOSM)) peta.removeLayer(layerOSM);
+      if (layerSatelit && !peta.hasLayer(layerSatelit)) peta.addLayer(layerSatelit);
+    } else {
+      if (layerSatelit && peta.hasLayer(layerSatelit)) peta.removeLayer(layerSatelit);
+      if (layerOSM && !peta.hasLayer(layerOSM)) peta.addLayer(layerOSM);
+    }
   }
 
   function tampilkanPesanError(pesan) {
@@ -431,19 +644,77 @@
       tap: true
     });
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    // Custom pane khusus untuk titik survei (z-index 650 agar selalu di atas poligon zona)
+    if (!peta.getPane('titikPane')) {
+      const titikPane = peta.createPane('titikPane');
+      titikPane.style.zIndex = '650';
+    }
+
+    // Peta Jalan (OSM)
+    layerOSM = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution:
         '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
       maxZoom: 19
-    }).addTo(peta);
-
-    document.getElementById('colorMode').addEventListener('change', (e) => {
-      gantiMode(e.target.value);
     });
 
+    // Peta Satelit (Esri World Imagery + batas jalan & wilayah)
+    const esriImagery = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+      attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community',
+      maxZoom: 19
+    });
+    const esriLabels = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
+      maxZoom: 19
+    });
+    layerSatelit = L.layerGroup([esriImagery, esriLabels]);
+
+    // Default aktif: Peta Jalan (OSM)
+    layerOSM.addTo(peta);
+
+    // Event listener basemap
+    const selBasemap = document.getElementById('baseMapSelect');
+    if (selBasemap) {
+      selBasemap.addEventListener('change', (e) => {
+        gantiBasemap(e.target.value);
+      });
+    }
+
+    // Event listener tampilan
+    const selColorMode = document.getElementById('colorMode');
+    if (selColorMode) {
+      selColorMode.addEventListener('change', (e) => {
+        gantiMode(e.target.value);
+      });
+    }
+
+    // Event listener filter kategori titik
+    const selPointFilter = document.getElementById('pointFilterSelect');
+    if (selPointFilter) {
+      selPointFilter.addEventListener('change', (e) => {
+        gantiFilterTitik(e.target.value);
+      });
+    }
+
+    // Kontrol Peta (Toggle Minimize)
+    let kontrolTerbuka = !window.matchMedia('(max-width: 768px)').matches;
+    const wadahKontrol = document.getElementById('mapControls');
+    if (wadahKontrol) {
+      L.DomEvent.disableClickPropagation(wadahKontrol);
+      L.DomEvent.disableScrollPropagation(wadahKontrol);
+      const btnToggle = document.getElementById('mapControlsToggle');
+      if (btnToggle) {
+        wadahKontrol.classList.toggle('is-collapsed', !kontrolTerbuka);
+        btnToggle.setAttribute('aria-expanded', kontrolTerbuka);
+        btnToggle.addEventListener('click', () => {
+          kontrolTerbuka = !kontrolTerbuka;
+          wadahKontrol.classList.toggle('is-collapsed', !kontrolTerbuka);
+          btnToggle.setAttribute('aria-expanded', kontrolTerbuka);
+        });
+      }
+    }
+
+    // Legenda Peta (Toggle Minimize)
     const wadahLegenda = document.getElementById('mapLegend');
     if (wadahLegenda) {
-      // Klik legenda tidak ikut menggeser atau mengklik peta
       L.DomEvent.disableClickPropagation(wadahLegenda);
       L.DomEvent.disableScrollPropagation(wadahLegenda);
       wadahLegenda.addEventListener('click', (e) => {
@@ -468,6 +739,8 @@
 
       // 2. Muat Master_Zona.geojson sebagai sumber tunggal geometri & atribut zona
       const resGeo = await fetchWithFallback([
+        '../data/geojson/zona/Master_Zona.geojson',
+        'data/geojson/zona/Master_Zona.geojson',
         '../data/geojson/Master_Zona.geojson',
         'data/geojson/Master_Zona.geojson',
         'public-data/Master_Zona.geojson?v=357',
@@ -494,6 +767,9 @@
       perbaruiLegenda();
       document.dispatchEvent(new CustomEvent('znt:data-ready', { detail: dataZona }));
       if (window.zntProgress) window.zntProgress.dengarkan(dataZona);
+
+      // 5. Muat sebaran titik survei secara paralel
+      muatDataTitik();
     } catch (err) {
       console.error('Error memuat data peta ZNT:', err);
       tampilkanPesanError(err.message);

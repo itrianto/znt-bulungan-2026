@@ -12,7 +12,10 @@ serviceAccount*.json
 
 # Data mentah lokal (bukan untuk situs)
 data/raw/
+data/clean/
 data/private/
+docs/data/
+znt-bulungan-2026/
 *.bak
 
 # Berkas sistem dan editor

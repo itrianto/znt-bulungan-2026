@@ -1,5 +1,5 @@
 # Generate surveyor-zone mapping JSON
-$masterPath = "data\geojson\Master_Zona.geojson"
+$masterPath = if (Test-Path "data\geojson\zona\Master_Zona.geojson") { "data\geojson\zona\Master_Zona.geojson" } else { "data\geojson\Master_Zona.geojson" }
 $outputPath = "docs\public-data\surveyor-zones.json"
 
 Write-Host "Loading Master_Zona.geojson..."
