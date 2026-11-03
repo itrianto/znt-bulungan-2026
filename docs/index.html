@@ -564,8 +564,27 @@
       </section>
 
       <section class="zone-table-card" aria-labelledby="zoneTableTitle">
-        <div class="section-heading"><h3 class="chart-title" id="zoneTableTitle">Zona terbaru</h3><span id="zoneTableCount" class="table-count"></span></div>
-        <div class="table-scroll"><table class="zone-table"><thead><tr><th>ID Zona</th><th>Status</th></tr></thead><tbody id="zoneTableBody"></tbody></table></div>
+        <div class="section-heading" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+          <div>
+            <h3 class="chart-title" id="zoneTableTitle">Zona Terbaru Diperbarui</h3>
+            <p style="font-size:12px;opacity:0.75;margin:2px 0 0;">Daftar zona terupdate di Admin. Klik baris zona untuk melihat lokasi di peta.</p>
+          </div>
+          <span id="zoneTableCount" class="table-count"></span>
+        </div>
+        <div class="table-scroll">
+          <table class="zone-table">
+            <thead>
+              <tr>
+                <th>ID Zona</th>
+                <th>Surveyor</th>
+                <th>Status</th>
+                <th>Titik</th>
+                <th>Diperbarui</th>
+              </tr>
+            </thead>
+            <tbody id="zoneTableBody"></tbody>
+          </table>
+        </div>
       </section>
     </aside>
   </main>
@@ -579,11 +598,11 @@
   <script src="js/auth.js"></script>
   <script src="js/surveyor.js"></script>
   <script src="js/comment-public.js"></script>
-  <script src="js/progress.js"></script>
-  <script src="js/sync.js"></script>
-  <script src="js/map.js?v=20261029"></script>
-  <script src="js/charts.js"></script>
-  <script src="js/main.js"></script>
+  <script src="js/progress.js?v=20261103"></script>
+  <script src="js/sync.js?v=20261103"></script>
+  <script src="js/map.js?v=20261103"></script>
+  <script src="js/charts.js?v=20261103"></script>
+  <script src="js/main.js?v=20261103"></script>
   <script>
     // Toggle theme khusus index.html
     function toggleTheme() {

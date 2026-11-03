@@ -10,9 +10,18 @@
         const idZona = f.properties.Zona_ID || f.properties.ID_ZONA;
         const p = perubahan.get(idZona); 
         if (p) { 
-          Object.assign(f.properties, { STATUS: p.status || 'Belum', TITIK_SELESAI: p.titikSelesai, _FIRESTORE_VERIFIED: true }); 
+          Object.assign(f.properties, { 
+            STATUS: p.status || 'Belum', 
+            TITIK_SELESAI: p.titikSelesai, 
+            updatedAt: p.updatedAt || f.properties.updatedAt,
+            _FIRESTORE_VERIFIED: true 
+          }); 
         } else { 
-          Object.assign(f.properties, { STATUS: 'Belum diverifikasi', TITIK_SELESAI: 0, _FIRESTORE_VERIFIED: false }); 
+          Object.assign(f.properties, { 
+            STATUS: f.properties.STATUS || 'Belum diverifikasi', 
+            TITIK_SELESAI: f.properties.TITIK_SELESAI || 0, 
+            _FIRESTORE_VERIFIED: false 
+          }); 
         } 
       }); 
       window.petaZNT.renderUlang(); 

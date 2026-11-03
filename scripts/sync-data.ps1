@@ -14,9 +14,8 @@ $zonaSrc = if (Test-Path "data\geojson\zona\Master_Zona.geojson") { "data\geojso
 $zonaDest = "docs\public-data\Master_Zona.geojson"
 
 if (Test-Path $zonaSrc) {
-    Copy-Item $zonaSrc $zonaDest -Force
-    $sizeMB = [math]::Round((Get-Item $zonaDest).Length / 1MB, 2)
-    Write-Host "[OK] Master_Zona disalin ke $zonaDest ($sizeMB MB)" -ForegroundColor Green
+    Write-Host "[..] Mengoptimalkan Master_Zona ke $zonaDest (kompresi ringan untuk web)..." -ForegroundColor Yellow
+    node "$PSScriptRoot\optimize-geojson.js" $zonaSrc $zonaDest
 } else {
     Write-Warning "File Master_Zona.geojson tidak ditemukan di data\geojson\zona\!"
 }

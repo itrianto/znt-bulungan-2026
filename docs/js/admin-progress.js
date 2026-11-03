@@ -99,13 +99,12 @@
       surveyorList = parseSurveyorCSV(csvText);
       populateSurveyorDropdown();
 
-      // 2. Muat Master_Zona.geojson
+      // 2. Muat Master_Zona.geojson (utamakan versi teroptimasi)
       const resGeo = await fetchWithFallback([
+        'public-data/Master_Zona.geojson?v=20261103',
+        '../docs/public-data/Master_Zona.geojson?v=20261103',
         '../data/geojson/zona/Master_Zona.geojson',
         'data/geojson/zona/Master_Zona.geojson',
-        '../data/geojson/Master_Zona.geojson',
-        'data/geojson/Master_Zona.geojson',
-        'public-data/Master_Zona.geojson?v=357',
         'public-data/public-zona.geojson'
       ]);
       masterGeoJSON = await resGeo.json();

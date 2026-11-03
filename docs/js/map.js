@@ -683,7 +683,8 @@
   function initPeta() {
     peta = L.map('map', {
       zoomControl: true,
-      tap: true
+      tap: true,
+      preferCanvas: true
     });
 
     // Custom pane khusus untuk titik survei (z-index 650 agar selalu di atas poligon zona)
@@ -779,13 +780,12 @@
       const listSurveyor = parseSurveyorCSV(csvText);
       inisialisasiSurveyorMap(listSurveyor);
 
-      // 2. Muat Master_Zona.geojson sebagai sumber tunggal geometri & atribut zona
+      // 2. Muat Master_Zona.geojson sebagai sumber tunggal geometri & atribut zona (utamakan versi teroptimasi)
       const resGeo = await fetchWithFallback([
+        'public-data/Master_Zona.geojson?v=20261103',
+        '../docs/public-data/Master_Zona.geojson?v=20261103',
         '../data/geojson/zona/Master_Zona.geojson',
         'data/geojson/zona/Master_Zona.geojson',
-        '../data/geojson/Master_Zona.geojson',
-        'data/geojson/Master_Zona.geojson',
-        'public-data/Master_Zona.geojson?v=357',
         'public-data/public-zona.geojson'
       ]);
       dataZona = await resGeo.json();
@@ -866,6 +866,32 @@
 
   document.addEventListener('surveyors:updated', segarkanSurveyor);
 
+  function fokusZona(idZona) {
+    if (!layerZona || !idZona) return false;
+    const targetId = String(idZona).trim().toUpperCase();
+    let targetLayer = null;
+
+    layerZona.eachLayer((l) => {
+      const p = l.feature && l.feature.properties;
+      if (!p) return;
+      const id = String(p.Zona_ID || p.ID_ZONA || '').trim().toUpperCase();
+      if (id === targetId) {
+        targetLayer = l;
+      }
+    });
+
+    if (targetLayer) {
+      if (peta && targetLayer.getBounds && targetLayer.getBounds().isValid()) {
+        peta.fitBounds(targetLayer.getBounds(), { padding: [50, 50], maxZoom: 15 });
+      }
+      try {
+        targetLayer.bindPopup(() => buatKontenPopup(targetLayer.feature.properties)).openPopup();
+      } catch (_) {}
+      return true;
+    }
+    return false;
+  }
+
   // ============================================================
   // API PUBLIK
   // ============================================================
@@ -877,6 +903,7 @@
     dapatkanKategori,
     dapatkanStatus,
     dapatkanSurveyor,
+    fokusZona,
     // Daftar surveyor sesuai urutan & warna surveyor.csv (dipakai grafik)
     daftarSurveyorCSV: () => Array.from(mapSurveyor.values()).map((s) => ({ nama: s.nama, warna: s.warna }))
   };

@@ -58,15 +58,110 @@
       : `${persen.toFixed(1)}% zona siap dihitung (minimal ${MIN_TITIK} titik per zona)`;
   }
   function aman(teks) { const el = document.createElement('span'); el.textContent = teks; return el.innerHTML; }
+
+  function parseTime(val) {
+    if (!val) return 0;
+    if (typeof val.toMillis === 'function') return val.toMillis();
+    if (typeof val.toDate === 'function') return val.toDate().getTime();
+    if (val.seconds) return val.seconds * 1000;
+    if (typeof val === 'number') return val;
+    const parsed = new Date(val).getTime();
+    return isNaN(parsed) ? 0 : parsed;
+  }
+
+  function formatWaktuRelatif(val) {
+    const ms = parseTime(val);
+    if (!ms) return '-';
+    const diffSec = Math.floor((Date.now() - ms) / 1000);
+    if (diffSec < 60) return 'Baru saja';
+    const diffMin = Math.floor(diffSec / 60);
+    if (diffMin < 60) return `${diffMin} mnt lalu`;
+    const diffJam = Math.floor(diffMin / 60);
+    if (diffJam < 24) return `${diffJam} jam lalu`;
+    const diffHari = Math.floor(diffJam / 24);
+    if (diffHari <= 7) return `${diffHari} hari lalu`;
+    const d = new Date(ms);
+    const tgl = String(d.getDate()).padStart(2, '0');
+    const bln = String(d.getMonth() + 1).padStart(2, '0');
+    return `${tgl}/${bln}/${d.getFullYear()}`;
+  }
+
+  let tableClickBound = false;
+
   function renderTabel(data) {
     dataAktif = data;
-    const fitur = data.features;
-    document.getElementById('zoneTableCount').textContent = `${fitur.length} zona`;
-    document.getElementById('zoneTableBody').innerHTML = fitur.slice(0, 10).map((f) => {
-      const p = f.properties, status = window.petaZNT.dapatkanStatus(p), kelas = status.toLowerCase().replace(/\s+/g, '');
-      const id = p.Zona_ID || p.ID_ZONA || '-';
-      return `<tr><td>${aman(id)}</td><td><span class="status-badge status-badge--${kelas}">${aman(status)}</span></td></tr>`;
+    const fitur = [...(data.features || [])];
+    const totalSemua = fitur.length;
+
+    // Urutkan zona yang paling baru diupdate di admin ke urutan paling atas
+    fitur.sort((a, b) => {
+      const timeA = parseTime(a.properties.updatedAt);
+      const timeB = parseTime(b.properties.updatedAt);
+      if (timeB !== timeA) return timeB - timeA;
+
+      const vA = a.properties._FIRESTORE_VERIFIED ? 1 : 0;
+      const vB = b.properties._FIRESTORE_VERIFIED ? 1 : 0;
+      if (vB !== vA) return vB - vA;
+
+      const sA = (a.properties.STATUS || '').toLowerCase();
+      const sB = (b.properties.STATUS || '').toLowerCase();
+      const rank = (s) => (s.includes('selesai') ? 4 : s.includes('proses') ? 3 : s.includes('masalah') ? 2 : s.includes('belum') ? 1 : 0);
+      const rA = rank(sA), rB = rank(sB);
+      if (rB !== rA) return rB - rA;
+
+      const idA = String(a.properties.Zona_ID || a.properties.ID_ZONA || '');
+      const idB = String(b.properties.Zona_ID || b.properties.ID_ZONA || '');
+      return idA.localeCompare(idB, undefined, { numeric: true });
+    });
+
+    const countUpdated = fitur.filter(f => parseTime(f.properties.updatedAt) > 0 || f.properties._FIRESTORE_VERIFIED).length;
+    const countBadge = document.getElementById('zoneTableCount');
+    if (countBadge) {
+      countBadge.textContent = countUpdated > 0 ? `${countUpdated} diperbarui` : `${totalSemua} zona`;
+    }
+
+    const tbody = document.getElementById('zoneTableBody');
+    if (!tbody) return;
+
+    const listTampil = fitur.slice(0, 15);
+    tbody.innerHTML = listTampil.map((f) => {
+      const p = f.properties;
+      const status = window.petaZNT.dapatkanStatus(p);
+      const kelas = status.toLowerCase().replace(/\s+/g, '');
+      const id = String(p.Zona_ID || p.ID_ZONA || '-').trim();
+      const surveyor = window.petaZNT.dapatkanSurveyor(p) || '-';
+      const titik = Number(p.TITIK_SELESAI) || 0;
+      const waktuStr = formatWaktuRelatif(p.updatedAt);
+      const isUpdated = parseTime(p.updatedAt) > 0 || p._FIRESTORE_VERIFIED;
+
+      return `
+        <tr data-zone-id="${aman(id)}" style="cursor:pointer;" title="Klik untuk fokus ke Zona ${aman(id)} di peta">
+          <td><strong style="color:var(--accent,#007aff);">${aman(id)}</strong></td>
+          <td><span style="font-size:0.9em;">${aman(surveyor)}</span></td>
+          <td><span class="status-badge status-badge--${kelas}">${aman(status)}</span></td>
+          <td>${aman(titik)}</td>
+          <td style="font-size:0.85em;color:var(--text-sub);white-space:nowrap;">
+            ${isUpdated ? `🕒 ${aman(waktuStr)}` : aman(waktuStr)}
+          </td>
+        </tr>
+      `;
     }).join('');
+
+    if (!tableClickBound) {
+      tableClickBound = true;
+      tbody.addEventListener('click', (e) => {
+        const tr = e.target.closest('tr[data-zone-id]');
+        if (!tr) return;
+        const id = tr.dataset.zoneId;
+        if (window.petaZNT && window.petaZNT.fokusZona) {
+          window.petaZNT.fokusZona(id);
+          if (window.innerWidth < 992) {
+            const mapEl = document.getElementById('map');
+            if (mapEl) mapEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        }
+      });
+    }
   }
   document.addEventListener('znt:data-ready', (event) => hitung(event.detail));
   document.addEventListener('znt:progress-changed', (event) => hitung(event.detail));

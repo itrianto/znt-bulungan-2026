@@ -175,6 +175,9 @@
         if (ov.geometry) {
           f.geometry = ov.geometry;
         }
+        if (ov.updatedAt) {
+          f.properties.updatedAt = ov.updatedAt;
+        }
       }
     });
 
