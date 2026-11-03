@@ -36,6 +36,7 @@
       
       if (window.zntAdminSurveyor) window.zntAdminSurveyor.init(false);
       if (window.zntAdminProgress) window.zntAdminProgress.init(false);
+      if (window.zntAdminTitik) window.zntAdminTitik.init(false);
       if (window.zntAdminComment) window.zntAdminComment.init(false);
       return;
     }
@@ -62,6 +63,7 @@
       
       if (window.zntAdminSurveyor) window.zntAdminSurveyor.init(isAdmin);
       if (window.zntAdminProgress) window.zntAdminProgress.init(isAdmin);
+      if (window.zntAdminTitik) window.zntAdminTitik.init(isAdmin);
       if (window.zntAdminComment) window.zntAdminComment.init(isAdmin);
     } catch (error) {
       status.textContent = 'Akses admin tidak dapat diverifikasi.';
@@ -70,6 +72,7 @@
       
       if (window.zntAdminSurveyor) window.zntAdminSurveyor.init(false);
       if (window.zntAdminProgress) window.zntAdminProgress.init(false);
+      if (window.zntAdminTitik) window.zntAdminTitik.init(false);
       if (window.zntAdminComment) window.zntAdminComment.init(false);
     }
   }

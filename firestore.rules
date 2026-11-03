@@ -120,6 +120,13 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // Sebaran titik survei (bundel titik pertanian & non-pertanian) - publik read, admin write
+    match /sebaranTitik/{docId} {
+      allow read: if true;
+      allow create, update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
     // Struktur lama dikunci sampai audit dan migrasi eksplisit selesai.
     match /progressZona/{zoneId} {
       allow read, write: if false;

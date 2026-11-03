@@ -519,8 +519,59 @@
     perbaruiLegenda();
   }
 
+  function terapkanDataTitik(list) {
+    if (!Array.isArray(list)) return;
+    dataTitik = list;
+
+    const titikP = dataTitik.filter((t) => t.jenis === 'Pertanian');
+    const titikNP = dataTitik.filter((t) => t.jenis === 'Non-Pertanian');
+
+    const optAll = document.querySelector('#pointFilterSelect option[value="all"]');
+    const optP = document.querySelector('#pointFilterSelect option[value="pertanian"]');
+    const optNP = document.querySelector('#pointFilterSelect option[value="non_pertanian"]');
+    if (optAll) optAll.textContent = `Semua Titik (${dataTitik.length})`;
+    if (optP) optP.textContent = `Pertanian (${titikP.length})`;
+    if (optNP) optNP.textContent = `Non-Pertanian (${titikNP.length})`;
+
+    renderTitikLayer();
+    perbaruiLegenda();
+  }
+
+  let titikListenerBound = false;
+
   async function muatDataTitik() {
     try {
+      // 1. Coba muat dari Cloud Firestore (Pilihan A - sebaranTitik/master)
+      if (window.firebase && firebase.firestore) {
+        try {
+          const docRef = firebase.firestore().collection('sebaranTitik').doc('master');
+          const docSnap = await docRef.get();
+          if (docSnap.exists) {
+            const d = docSnap.data();
+            if (Array.isArray(d.points) && d.points.length > 0) {
+              terapkanDataTitik(d.points);
+
+              // Pasang realtime listener agar jika admin upload, peta langsung terupdate
+              if (!titikListenerBound) {
+                titikListenerBound = true;
+                docRef.onSnapshot((snap) => {
+                  if (snap && snap.exists) {
+                    const snapData = snap.data();
+                    if (Array.isArray(snapData.points)) {
+                      terapkanDataTitik(snapData.points);
+                    }
+                  }
+                }, (err) => console.warn('Realtime titik snapshot error:', err));
+              }
+              return;
+            }
+          }
+        } catch (e) {
+          console.warn('Gagal memuat titik dari Firestore, menggunakan fallback CSV lokal:', e.message);
+        }
+      }
+
+      // 2. Fallback: muat dari berkas CSV lokal bawaan
       const urlsPertanian = [
         '../data/geojson/sebaran_titik/titik_pertanian.csv',
         'data/geojson/sebaran_titik/titik_pertanian.csv',
@@ -540,16 +591,7 @@
       const titikP = resP ? parseTitikCSV(resP, 'Pertanian') : [];
       const titikNP = resNP ? parseTitikCSV(resNP, 'Non-Pertanian') : [];
 
-      dataTitik = [...titikP, ...titikNP];
-
-      const optAll = document.querySelector('#pointFilterSelect option[value="all"]');
-      const optP = document.querySelector('#pointFilterSelect option[value="pertanian"]');
-      const optNP = document.querySelector('#pointFilterSelect option[value="non_pertanian"]');
-      if (optAll) optAll.textContent = `Semua Titik (${dataTitik.length})`;
-      if (optP) optP.textContent = `Pertanian (${titikP.length})`;
-      if (optNP) optNP.textContent = `Non-Pertanian (${titikNP.length})`;
-
-      renderTitikLayer();
+      terapkanDataTitik([...titikP, ...titikNP]);
     } catch (err) {
       console.warn('Data sebaran titik survei belum tersedia:', err.message);
     }
