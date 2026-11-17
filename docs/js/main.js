@@ -109,8 +109,8 @@
       const rA = rank(sA), rB = rank(sB);
       if (rB !== rA) return rB - rA;
 
-      const idA = String(a.properties.Zona_ID || a.properties.ID_ZONA || '');
-      const idB = String(b.properties.Zona_ID || b.properties.ID_ZONA || '');
+      const idA = window.zntSpatial ? window.zntSpatial.dapatkanIdZona(a.properties) : String(a.properties.histzone || a.properties.Zona_ID || a.properties.ID_ZONA || '');
+      const idB = window.zntSpatial ? window.zntSpatial.dapatkanIdZona(b.properties) : String(b.properties.histzone || b.properties.Zona_ID || b.properties.ID_ZONA || '');
       return idA.localeCompare(idB, undefined, { numeric: true });
     });
 
@@ -128,7 +128,7 @@
       const p = f.properties;
       const status = window.petaZNT.dapatkanStatus(p);
       const kelas = status.toLowerCase().replace(/\s+/g, '');
-      const id = String(p.Zona_ID || p.ID_ZONA || '-').trim();
+      const id = window.zntSpatial ? window.zntSpatial.dapatkanIdZona(p) : String(p.histzone || p.Zona_ID || p.ID_ZONA || '-').trim();
       const surveyor = window.petaZNT.dapatkanSurveyor(p) || '-';
       const titik = Number(p.TITIK_SELESAI) || 0;
       const waktuStr = formatWaktuRelatif(p.updatedAt);

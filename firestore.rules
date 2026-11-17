@@ -58,7 +58,7 @@ service cloud.firestore {
         && request.resource.data.surveyorName.size() > 0
         && request.resource.data.surveyorName.size() <= 100
         && request.resource.data.zoneId is string
-        && request.resource.data.zoneId.matches('^Z[0-9]{3}$')
+        && (request.resource.data.zoneId.matches('^Z[0-9]{3}$') || (request.resource.data.zoneId.size() > 0 && request.resource.data.zoneId.size() <= 50))
         && request.resource.data.message is string
         && request.resource.data.message.size() > 0
         && request.resource.data.message.size() <= 1000

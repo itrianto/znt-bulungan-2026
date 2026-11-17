@@ -181,9 +181,16 @@
     });
   }
 
-  // Normalisasi nama untuk pencocokan (huruf kecil, tanpa tanda baca/spasi ganda)
+  // Normalisasi nama untuk pencocokan (huruf kecil, hapus gelar/singkatan umum)
   function normalisasiNama(nama) {
-    return String(nama || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+    return String(nama || '')
+      .toLowerCase()
+      .replace(/\bmuhammad\b/g, 'm')
+      .replace(/\bmuh\b/g, 'm')
+      .replace(/\bnasution\b/g, 'nst')
+      .replace(/\bfadhlan\b/g, 'fadlan')
+      .replace(/[^a-z0-9]+/g, ' ')
+      .trim();
   }
 
   function jarakEdit(a, b) {
@@ -201,36 +208,93 @@
     return dp[a.length][b.length];
   }
 
-  // Cocokkan nama dari GeoJSON/override ke entri surveyor.csv (toleran salah ketik kecil).
-  // Mengembalikan null jika tidak ada yang cocok: tidak pernah membuat surveyor baru.
+  // Cocokkan nama surveyor dengan surveyor.csv atau daftarkan dinamis
   function cocokkanSurveyor(nama) {
-    const kunci = normalisasiNama(nama);
+    if (!nama || nama === BELUM_DITUGASKAN || nama === '-') return null;
+    const namaPertama = String(nama).split(',')[0].trim();
+    const kunci = normalisasiNama(namaPertama);
     if (!kunci) return null;
+
     let terbaik = null;
     let jarakTerbaik = Infinity;
     let seri = false;
+
     for (const s of mapSurveyor.values()) {
       const kandidat = normalisasiNama(s.nama);
       if (kandidat === kunci) return s;
+
+      const wordsK = kunci.split(' ');
+      const wordsC = kandidat.split(' ');
+      if (wordsK.length >= 2 && wordsK.every(w => wordsC.includes(w))) return s;
+      if (wordsC.length >= 2 && wordsC.every(w => wordsK.includes(w))) return s;
+
       const d = jarakEdit(kunci, kandidat);
       if (d < jarakTerbaik) { jarakTerbaik = d; terbaik = s; seri = false; }
       else if (d === jarakTerbaik) seri = true;
     }
-    return (jarakTerbaik <= 2 && !seri) ? terbaik : null;
+
+    if (jarakTerbaik <= 3 && !seri && terbaik) return terbaik;
+
+    // Jika surveyor baru belum ada di mapSurveyor, daftarkan secara dinamis dengan warna unik
+    const key = namaPertama.toLowerCase();
+    if (!mapSurveyor.has(key)) {
+      const idx = mapSurveyor.size;
+      const warna = hasilkanWarnaDinamis(idx, Math.max(12, idx + 1));
+      const entri = {
+        id: String(idx + 1),
+        nama: namaPertama,
+        warna: warna,
+        zones: []
+      };
+      mapSurveyor.set(key, entri);
+      return entri;
+    }
+    return mapSurveyor.get(key);
   }
 
-  // Join Master_Zona.geojson dengan surveyor.csv (surveyor.csv = sumber tunggal daftar surveyor)
+  function dapatkanIdZona(properties) {
+    if (!properties) return '-';
+    if (window.zntSpatial && window.zntSpatial.dapatkanIdZona) {
+      return window.zntSpatial.dapatkanIdZona(properties);
+    }
+    const val = properties.histzone ?? properties.HISTZONE ?? properties.Histzone ?? properties.Zona_ID ?? properties.ID_ZONA ?? properties.id_zona ?? properties.ID;
+    return val ? String(val).trim() : '-';
+  }
+
+  function dapatkanLuasan(properties) {
+    if (!properties) return null;
+    if (window.zntSpatial && window.zntSpatial.dapatkanLuasan) {
+      return window.zntSpatial.dapatkanLuasan(properties);
+    }
+    const val = properties.luasan ?? properties.LUASAN ?? properties.Luas ?? properties.LUAS ?? properties.area ?? properties.AREA ?? properties.Shape_Area;
+    if (val == null || val === '') return null;
+    return `${val} Ha`;
+  }
+
+  // Join Master_Zona.geojson dengan data surveyor (dari CSV, Firestore, atau sebaran titik)
   function tautkanSurveyorDanZona(geojson) {
+    if (!geojson || !geojson.features) return;
     // Reset penugasan agar tidak menumpuk saat sinkronisasi ulang
     mapSurveyor.forEach((s) => { s.zones = []; });
     geojson.features.forEach((f) => {
       const props = f.properties || {};
-      if (!props.ID_ZONA && props.Zona_ID) props.ID_ZONA = props.Zona_ID;
-      if (!props.Zona_ID && props.ID_ZONA) props.Zona_ID = props.ID_ZONA;
-      if (!props.SURVEYOR && props.Surveyor) props.SURVEYOR = props.Surveyor;
-      if (!props.Surveyor && props.SURVEYOR) props.Surveyor = props.SURVEYOR;
-      const namaSurveyor = (props.Surveyor || props.SURVEYOR || '').trim();
-      const idZona = String(props.Zona_ID || props.ID_ZONA || '').trim().toUpperCase();
+      const idZona = dapatkanIdZona(props).toUpperCase();
+      if (!props.ID_ZONA && idZona) props.ID_ZONA = idZona;
+      if (!props.Zona_ID && idZona) props.Zona_ID = idZona;
+
+      // 1. Cek dari penugasan admin di Firestore jika ada
+      let namaSurveyor = '';
+      if (window.zntSurveyor && typeof window.zntSurveyor.getSurveyorByZone === 'function') {
+        const assigned = window.zntSurveyor.getSurveyorByZone(idZona);
+        if (assigned && assigned.displayName) {
+          namaSurveyor = assigned.displayName;
+        }
+      }
+
+      // 2. Ambil dari properti poligon / hasil spatial engine jika belum ada
+      if (!namaSurveyor) {
+        namaSurveyor = (props.Surveyor || props.SURVEYOR || props._surveyorNama || '').trim();
+      }
 
       const surveyorObj = cocokkanSurveyor(namaSurveyor);
 
@@ -238,6 +302,8 @@
         if (idZona && !surveyorObj.zones.includes(idZona)) {
           surveyorObj.zones.push(idZona);
         }
+        props.Surveyor = surveyorObj.nama;
+        props.SURVEYOR = surveyorObj.nama;
         props._surveyorNama = surveyorObj.nama;
         props._surveyorWarna = surveyorObj.warna;
       } else {
@@ -246,7 +312,7 @@
       }
     });
 
-    daftarSurveyor = Array.from(mapSurveyor.values()).map((s) => s.nama); // urutan surveyor.csv
+    daftarSurveyor = daftarSurveyorUnik(geojson);
 
     // Sinkronkan ke API global surveyor jika ada
     if (window.zntSurveyor) {
@@ -269,6 +335,9 @@
 
   // Kategori dibaca dari kolom GeoJSON PENGGUNAAN (pertanian / non-pertanian)
   function dapatkanKategori(properties) {
+    if (window.zntSpatial && window.zntSpatial.dapatkanPenggunaan) {
+      return window.zntSpatial.dapatkanPenggunaan(properties);
+    }
     const val = properties.PENGGUNAAN ?? properties.penggunaan ?? properties.KATEGORI;
     if (val == null || String(val).trim() === '') {
       return '-';
@@ -277,20 +346,20 @@
   }
 
   function dapatkanStatus(properties) {
-    if (properties._FIRESTORE_VERIFIED === false) {
+    if (properties._FIRESTORE_VERIFIED === false && properties.STATUS == null) {
       return 'Belum diverifikasi';
     }
     return properties.STATUS || properties.status || 'Belum';
   }
 
   function dapatkanSurveyor(properties) {
-    if (properties._surveyorNama) return properties._surveyorNama;
-    const sName = (properties.Surveyor || properties.SURVEYOR || '').trim();
-    if (sName) {
+    if (!properties) return BELUM_DITUGASKAN;
+    const sName = (properties.Surveyor || properties.SURVEYOR || properties._surveyorNama || '').trim();
+    if (sName && sName !== BELUM_DITUGASKAN && sName !== '-') {
       const match = cocokkanSurveyor(sName);
-      return match ? match.nama : BELUM_DITUGASKAN;
+      return match ? match.nama : sName;
     }
-    const idZona = String(properties.Zona_ID || properties.ID_ZONA || '').trim().toUpperCase();
+    const idZona = dapatkanIdZona(properties).toUpperCase();
     for (const s of mapSurveyor.values()) {
       if (s.zones && s.zones.includes(idZona)) return s.nama;
     }
@@ -304,7 +373,22 @@
   }
 
   function daftarSurveyorUnik(geojson) {
-    return Array.from(mapSurveyor.values()).map((s) => s.nama); // urutan surveyor.csv
+    const surveyorAktif = new Set();
+    if (geojson && geojson.features) {
+      geojson.features.forEach((f) => {
+        const s = dapatkanSurveyor(f.properties);
+        if (s && s !== BELUM_DITUGASKAN && s !== '-') {
+          surveyorAktif.add(s);
+        }
+      });
+    }
+
+    const list = [];
+    surveyorAktif.forEach(s => list.push(s));
+    mapSurveyor.forEach(s => {
+      if (!list.includes(s.nama)) list.push(s.nama);
+    });
+    return list;
   }
 
   const WARNA_KATEGORI_MAP = {
@@ -320,8 +404,8 @@
   }
 
   function warnaUntukSurveyor(nama) {
-    if (nama === BELUM_DITUGASKAN) return WARNA_BELUM_DITUGASKAN;
-    const match = mapSurveyor.get(String(nama).trim().toLowerCase());
+    if (!nama || nama === BELUM_DITUGASKAN || nama === '-') return WARNA_BELUM_DITUGASKAN;
+    const match = cocokkanSurveyor(nama);
     if (match && match.warna) return match.warna;
     return WARNA_BELUM_DITUGASKAN;
   }
@@ -331,7 +415,8 @@
       return WARNA_STATUS[dapatkanStatus(properties)] || '#cccccc';
     }
     if (modeWarna === 'surveyor') {
-      return properties._surveyorWarna || warnaUntukSurveyor(dapatkanSurveyor(properties));
+      const surveyor = dapatkanSurveyor(properties);
+      return warnaUntukSurveyor(surveyor);
     }
     return warnaUntukKategori(dapatkanKategori(properties));
   }
@@ -341,21 +426,24 @@
   // ============================================================
 
   function gayaPoligon(properties) {
+    const isSatelit = (basemapAktif === 'satellite');
+
     if (modeWarna === 'titik') {
       return {
-        color: '#2c3e50',
-        weight: 1.2,
-        opacity: 0.6,
-        fillColor: '#95a5a6',
-        fillOpacity: 0.12
+        // Kontras tinggi khusus citra satelit: warna kuning neon terang (#ffe600) dengan garis tegas
+        color: isSatelit ? '#ffe600' : '#007aff',
+        weight: isSatelit ? 2.2 : 1.8,
+        opacity: isSatelit ? 1.0 : 0.85,
+        fillColor: isSatelit ? '#ffffff' : '#007aff',
+        fillOpacity: isSatelit ? 0.04 : 0.06
       };
     }
     return {
-      color: '#333333',
-      weight: 1,
-      opacity: 0.8,
+      color: isSatelit ? '#ffffff' : '#333333',
+      weight: isSatelit ? 1.6 : 1,
+      opacity: isSatelit ? 0.95 : 0.8,
       fillColor: warnaPoligon(properties),
-      fillOpacity: 0.6
+      fillOpacity: isSatelit ? 0.65 : 0.6
     };
   }
 
@@ -367,24 +455,35 @@
 
   // Dipanggil setiap kali popup dibuka, jadi isinya selalu terbaru
   function buatKontenPopup(properties) {
-    const idZona = properties.Zona_ID || properties.ID_ZONA || '-';
-    const titik = (properties._FIRESTORE_VERIFIED === false || properties.TITIK_SELESAI == null)
-      ? 'Belum tersedia'
+    const idZona = dapatkanIdZona(properties);
+    const luasan = dapatkanLuasan(properties);
+    const titik = (properties.TITIK_SELESAI == null)
+      ? '0'
       : String(properties.TITIK_SELESAI);
     const surveyor = dapatkanSurveyor(properties);
     const status = dapatkanStatus(properties);
     const warnaSt = WARNA_STATUS[status] || '#cccccc';
 
-    return (
-      `<div style="min-width:180px;line-height:1.5">` +
-      `<strong style="font-size:1.05em">Zona ${aman(idZona)}</strong><br>` +
-      `<span style="color:#5f6368">Kategori:</span> ${aman(dapatkanKategori(properties))}<br>` +
-      `<span style="color:#5f6368">Surveyor ditugaskan:</span> <strong>${aman(surveyor)}</strong><br>` +
+    let html = `<div style="min-width:200px;line-height:1.55">` +
+      `<strong style="font-size:1.08em;color:var(--accent,#007aff);">Zona ${aman(idZona)}</strong><br>` +
+      `<span style="color:#5f6368">Penggunaan:</span> <strong>${aman(dapatkanKategori(properties))}</strong><br>`;
+
+    if (luasan) {
+      html += `<span style="color:#5f6368">Luas wilayah:</span> ${aman(luasan)}<br>`;
+    }
+
+    html += `<span style="color:#5f6368">Surveyor:</span> <strong>${aman(surveyor)}</strong><br>` +
       `<span style="color:#5f6368">Status:</span> ` +
-      `<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${warnaSt};margin-right:4px"></span>${aman(status)}<br>` +
-      `<span style="color:#5f6368">Titik selesai:</span> ${aman(titik)}` +
-      `</div>`
-    );
+      `<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${warnaSt};margin-right:4px"></span><strong>${aman(status)}</strong><br>` +
+      `<span style="color:#5f6368">Titik survei:</span> <strong>${aman(titik)} titik</strong>`;
+
+    if (properties._SPATIAL_POINTS && properties._SPATIAL_POINTS.length > 0) {
+      const disetujui = properties._SPATIAL_POINTS.filter(p => String(p.status).toLowerCase().includes('setuju')).length;
+      html += ` <small style="color:#34a853;font-weight:600;">(${disetujui} valid)</small>`;
+    }
+
+    html += `</div>`;
+    return html;
   }
 
   function padaSetiapZona(fitur, layer) {
@@ -393,7 +492,12 @@
     layer.on({
       mouseover: (e) => {
         if (modeWarna === 'titik') {
-          e.target.setStyle({ weight: 2, fillOpacity: 0.18 });
+          const isSat = (basemapAktif === 'satellite');
+          e.target.setStyle({
+            weight: isSat ? 3.2 : 2.5,
+            color: isSat ? '#ffffff' : '#0056b3',
+            fillOpacity: isSat ? 0.12 : 0.12
+          });
           return;
         }
         e.target.setStyle({ weight: 3, fillOpacity: 0.85 });
@@ -533,6 +637,22 @@
     if (optP) optP.textContent = `Pertanian (${titikP.length})`;
     if (optNP) optNP.textContent = `Non-Pertanian (${titikNP.length})`;
 
+    // Eksekusi kalkulasi spasial otomatis (point-in-polygon) jika data poligon sudah termuat
+    if (window.zntSpatial && dataZona && dataZona.features && dataZona.features.length > 0) {
+      window.zntSpatial.tautkanTitikKeZona(dataZona.features, dataTitik);
+
+      // PENTING: Tautkan kembali data surveyor ke poligon zona agar warna dan legenda tersinkronisasi
+      tautkanSurveyorDanZona(dataZona);
+      daftarSurveyor = daftarSurveyorUnik(dataZona);
+
+      renderLayer();
+      perbaruiLegenda();
+      document.dispatchEvent(new CustomEvent('znt:progress-changed', { detail: dataZona }));
+      if (window.grafikZNT && window.grafikZNT.renderSurveyor) {
+        window.grafikZNT.renderSurveyor(dataZona);
+      }
+    }
+
     renderTitikLayer();
     perbaruiLegenda();
   }
@@ -610,23 +730,39 @@
       const titikTampil = dapatkanTitikTampil();
       const disetujuiCount = titikTampil.filter((t) => String(t.status).toLowerCase().includes('setuju')).length;
       const ditolakCount = titikTampil.filter((t) => String(t.status).toLowerCase().includes('tolak')).length;
+      const isSat = (basemapAktif === 'satellite');
+      const warnaGaris = isSat ? '#ffe600' : '#007aff';
       html =
         `<div style="font-weight:700;margin-bottom:6px;font-size:0.75rem;color:var(--text-sub)">STATUS TITIK (${titikTampil.length})</div>` +
         itemLegenda(`Disetujui (${disetujuiCount})`, '#34a853') +
         itemLegenda(`Ditolak (${ditolakCount})`, '#d9534f') +
         `<div style="font-weight:700;margin:8px 0 4px;font-size:0.75rem;color:var(--text-sub)">BENTUK JENIS</div>` +
         `<div class="map__legend-item"><span style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;margin-right:7px;"><svg width="14" height="14" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="#34a853" stroke="#fff" stroke-width="1.8"/></svg></span>Pertanian (Lingkaran)</div>` +
-        `<div class="map__legend-item"><span style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;margin-right:7px;"><svg width="14" height="14" viewBox="0 0 16 16"><polygon points="8,1 15.5,14.5 0.5,14.5" fill="#34a853" stroke="#fff" stroke-width="1.8"/></svg></span>Non-Pertanian (Segitiga)</div>`;
+        `<div class="map__legend-item"><span style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;margin-right:7px;"><svg width="14" height="14" viewBox="0 0 16 16"><polygon points="8,1 15.5,14.5 0.5,14.5" fill="#34a853" stroke="#fff" stroke-width="1.8"/></svg></span>Non-Pertanian (Segitiga)</div>` +
+        `<div style="font-weight:700;margin:8px 0 4px;font-size:0.75rem;color:var(--text-sub)">BATAS ZONA</div>` +
+        `<div class="map__legend-item"><span class="map__legend-swatch" style="background:${warnaGaris};border:1px solid #ffffff;"></span>Batas Polygon Zona</div>`;
     } else if (modeWarna === 'status') {
       html = Object.entries(WARNA_STATUS)
         .map(([nama, warna]) => itemLegenda(nama, warna))
         .join('');
     } else if (modeWarna === 'surveyor') {
+      const countMap = new Map();
+      if (dataZona && dataZona.features) {
+        dataZona.features.forEach((f) => {
+          const s = dapatkanSurveyor(f.properties);
+          countMap.set(s, (countMap.get(s) || 0) + 1);
+        });
+      }
+
       html = daftarSurveyor
-        .map((nama) => itemLegenda(nama, warnaUntukSurveyor(nama)))
+        .map((nama) => {
+          const count = countMap.get(nama) || 0;
+          return itemLegenda(`${nama} (${count})`, warnaUntukSurveyor(nama));
+        })
         .join('');
-      if (dataZona && dataZona.features.some((f) => dapatkanSurveyor(f.properties) === BELUM_DITUGASKAN)) {
-        html += itemLegenda(BELUM_DITUGASKAN, WARNA_BELUM_DITUGASKAN);
+      const belumCount = countMap.get(BELUM_DITUGASKAN) || 0;
+      if (belumCount > 0) {
+        html += itemLegenda(`${BELUM_DITUGASKAN} (${belumCount})`, WARNA_BELUM_DITUGASKAN);
       }
     } else {
       html = daftarKategori
@@ -649,6 +785,11 @@
     const pointFilterRow = document.getElementById('pointFilterRow');
     if (pointFilterRow) pointFilterRow.style.display = (mode === 'titik' ? 'flex' : 'none');
 
+    if (mode === 'surveyor' && dataZona) {
+      tautkanSurveyorDanZona(dataZona);
+      daftarSurveyor = daftarSurveyorUnik(dataZona);
+    }
+
     if (layerZona) {
       layerZona.eachLayer((lapisan) => {
         lapisan.setStyle(gayaPoligon(lapisan.feature.properties));
@@ -667,6 +808,14 @@
       if (layerSatelit && peta.hasLayer(layerSatelit)) peta.removeLayer(layerSatelit);
       if (layerOSM && !peta.hasLayer(layerOSM)) peta.addLayer(layerOSM);
     }
+
+    // Perbarui gaya garis poligon zona agar langsung kontras saat peta dasar berganti
+    if (layerZona) {
+      layerZona.eachLayer((lapisan) => {
+        lapisan.setStyle(gayaPoligon(lapisan.feature.properties));
+      });
+    }
+    perbaruiLegenda();
   }
 
   function tampilkanPesanError(pesan) {
@@ -780,15 +929,25 @@
       const listSurveyor = parseSurveyorCSV(csvText);
       inisialisasiSurveyorMap(listSurveyor);
 
-      // 2. Muat Master_Zona.geojson sebagai sumber tunggal geometri & atribut zona (utamakan versi teroptimasi)
-      const resGeo = await fetchWithFallback([
-        'public-data/Master_Zona.geojson?v=20261103',
-        '../docs/public-data/Master_Zona.geojson?v=20261103',
-        '../data/geojson/zona/Master_Zona.geojson',
-        'data/geojson/zona/Master_Zona.geojson',
-        'public-data/public-zona.geojson'
-      ]);
-      dataZona = await resGeo.json();
+      // 2. Muat Master_Zona.geojson (utamakan dari IndexedDB lokal jika admin pernah upload)
+      let customPolygon = null;
+      if (window.zntSpatial && typeof window.zntSpatial.muatPolygonLokal === 'function') {
+        customPolygon = await window.zntSpatial.muatPolygonLokal();
+      }
+
+      if (customPolygon && Array.isArray(customPolygon.features) && customPolygon.features.length > 0) {
+        dataZona = customPolygon;
+        console.log(`Peta publik memuat ${dataZona.features.length} polygon kustom dari penyimpanan lokal.`);
+      } else {
+        const resGeo = await fetchWithFallback([
+          'public-data/Master_Zona.geojson?v=20261103',
+          '../docs/public-data/Master_Zona.geojson?v=20261103',
+          '../data/geojson/zona/Master_Zona.geojson',
+          'data/geojson/zona/Master_Zona.geojson',
+          'public-data/public-zona.geojson'
+        ]);
+        dataZona = await resGeo.json();
+      }
 
       // Terapkan override dari Admin (localStorage / IndexedDB) jika ada
       if (window.zntSync) {
@@ -837,7 +996,12 @@
 
   // Listener sinkronisasi realtime dari Admin (tanpa reload halaman)
   if (window.zntSync) {
-    window.zntSync.onSyncUpdate((msg) => {
+    window.zntSync.onSyncUpdate(async (msg) => {
+      if (msg && msg.type === 'POLYGON_UPDATED') {
+        await muatDataZona();
+        tampilkanToastSinkronisasi('Polygon zona diperbarui dari Admin!');
+        return;
+      }
       if (!dataZona) return;
       window.zntSync.applyOverridesToGeoJSON(dataZona);
       tautkanSurveyorDanZona(dataZona);
@@ -874,7 +1038,7 @@
     layerZona.eachLayer((l) => {
       const p = l.feature && l.feature.properties;
       if (!p) return;
-      const id = String(p.Zona_ID || p.ID_ZONA || '').trim().toUpperCase();
+      const id = dapatkanIdZona(p).toUpperCase();
       if (id === targetId) {
         targetLayer = l;
       }

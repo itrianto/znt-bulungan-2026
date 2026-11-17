@@ -137,6 +137,15 @@
   }
 
   // Terapkan override ke FeatureCollection GeoJSON
+  function extractZoneId(props) {
+    if (!props) return '';
+    if (window.zntSpatial && window.zntSpatial.dapatkanIdZona) {
+      return window.zntSpatial.dapatkanIdZona(props).toUpperCase();
+    }
+    const val = props.histzone ?? props.HISTZONE ?? props.Histzone ?? props.Zona_ID ?? props.ID_ZONA ?? props.id_zona ?? props.ID;
+    return val ? String(val).trim().toUpperCase() : '';
+  }
+
   function applyOverridesToGeoJSON(geojson) {
     if (!geojson || !geojson.features) return geojson;
 
@@ -147,14 +156,14 @@
     // 1. Filter out deleted zones
     if (deleted.length > 0) {
       geojson.features = geojson.features.filter(f => {
-        const id = String(f.properties.Zona_ID || f.properties.ID_ZONA || '').trim().toUpperCase();
+        const id = extractZoneId(f.properties);
         return !deleted.includes(id);
       });
     }
 
     // 2. Apply property overrides
     geojson.features.forEach(f => {
-      const id = String(f.properties.Zona_ID || f.properties.ID_ZONA || '').trim().toUpperCase();
+      const id = extractZoneId(f.properties);
       const ov = overrides[id];
       if (ov) {
         if (ov.Surveyor) {
@@ -183,9 +192,9 @@
 
     // 3. Append added zones
     if (added.length > 0) {
-      const existingIds = new Set(geojson.features.map(f => String(f.properties.Zona_ID || f.properties.ID_ZONA || '').trim().toUpperCase()));
+      const existingIds = new Set(geojson.features.map(f => extractZoneId(f.properties)));
       added.forEach(af => {
-        const afId = String(af.properties.Zona_ID || af.properties.ID_ZONA || '').trim().toUpperCase();
+        const afId = extractZoneId(af.properties);
         if (!existingIds.has(afId)) {
           geojson.features.push(JSON.parse(JSON.stringify(af)));
           existingIds.add(afId);

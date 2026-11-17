@@ -84,6 +84,238 @@
     loadData();
   }
 
+  // Helper untuk membaca titik survei dari memory, Firestore, atau CSV
+  async function dapatkanSemuaTitikSurvei() {
+    if (window.zntAdminTitik && typeof window.zntAdminTitik.getPoints === 'function') {
+      const pts = window.zntAdminTitik.getPoints();
+      if (Array.isArray(pts) && pts.length > 0) return pts;
+    }
+    if (db()) {
+      try {
+        const snap = await db().collection('sebaranTitik').doc('master').get();
+        if (snap.exists && Array.isArray(snap.data().points) && snap.data().points.length > 0) {
+          return snap.data().points;
+        }
+      } catch (e) {
+        console.warn('Gagal membaca titik dari Firestore:', e.message);
+      }
+    }
+    try {
+      const [resP, resNP] = await Promise.all([
+        fetchWithFallback([
+          '../data/geojson/sebaran_titik/titik_pertanian.csv',
+          'data/geojson/sebaran_titik/titik_pertanian.csv',
+          'public-data/sebaran_titik/titik_pertanian.csv?v=2'
+        ]).then(r => r.text()).catch(() => ''),
+        fetchWithFallback([
+          '../data/geojson/sebaran_titik/titik_non_pertanian.csv',
+          'data/geojson/sebaran_titik/titik_non_pertanian.csv',
+          'public-data/sebaran_titik/titik_non_pertanian.csv?v=2'
+        ]).then(r => r.text()).catch(() => '')
+      ]);
+      const ptsP = resP ? parseCsvTitik(resP, 'Pertanian') : [];
+      const ptsNP = resNP ? parseCsvTitik(resNP, 'Non-Pertanian') : [];
+      return [...ptsP, ...ptsNP];
+    } catch (e) {
+      console.warn('Gagal fallback titik CSV:', e.message);
+      return [];
+    }
+  }
+
+  function parseCsvTitik(text, jenis) {
+    const lines = text.split(/\r?\n/).filter(l => l.trim().length > 0);
+    if (lines.length < 2) return [];
+    const header = lines[0].split(',').map(h => h.trim().toLowerCase());
+    const idxNo = header.findIndex(h => h.includes('sampel') || h.includes('no') || h === 'id');
+    const idxSurveyor = header.findIndex(h => h.includes('penilai') || h.includes('surveyor') || h.includes('nama'));
+    const idxLat = header.findIndex(h => h === 'lat' || h.includes('latitude') || h.includes('lintang') || h === 'y');
+    const idxLon = header.findIndex(h => h === 'lon' || h.includes('longitude') || h.includes('bujur') || h === 'x');
+    const idxStatus = header.findIndex(h => h.includes('status'));
+
+    const list = [];
+    for (let i = 1; i < lines.length; i++) {
+      const cols = lines[i].split(',').map(c => c.trim().replace(/^"|"$/g, ''));
+      if (cols.length < 2) continue;
+      const lat = parseFloat(idxLat >= 0 ? cols[idxLat] : cols[2]);
+      const lon = parseFloat(idxLon >= 0 ? cols[idxLon] : cols[3]);
+      if (isNaN(lat) || isNaN(lon)) continue;
+
+      list.push({
+        noSampel: (idxNo >= 0 ? cols[idxNo] : cols[0]) || String(i),
+        surveyor: (idxSurveyor >= 0 ? cols[idxSurveyor] : cols[1]) || '-',
+        lat: lat,
+        lon: lon,
+        status: (idxStatus >= 0 ? cols[idxStatus] : cols[4]) || 'Disetujui',
+        jenis: jenis
+      });
+    }
+    return list;
+  }
+
+  // Hitung point-in-polygon sebaran titik ke poligon zona secara otomatis
+  async function jalankanHitungSpasial(isManualClick = false) {
+    if (!masterGeoJSON || !masterGeoJSON.features || masterGeoJSON.features.length === 0) return;
+    if (!window.zntSpatial || typeof window.zntSpatial.tautkanTitikKeZona !== 'function') return;
+
+    const banner = document.getElementById('spatialSummaryBanner');
+    const bannerText = document.getElementById('spatialSummaryText');
+
+    if (banner && isManualClick) {
+      banner.style.display = 'block';
+      if (bannerText) bannerText.textContent = 'Menghitung point-in-polygon sebaran titik survei ke polygon zona...';
+    }
+
+    const points = await dapatkanSemuaTitikSurvei();
+    if (!points || points.length === 0) {
+      if (bannerText && isManualClick) {
+        bannerText.textContent = 'Tidak ditemukan titik survei untuk dihitung.';
+      }
+      return;
+    }
+
+    const res = window.zntSpatial.tautkanTitikKeZona(masterGeoJSON.features, points);
+
+    // Sinkronkan ke allZones
+    allZones = masterGeoJSON.features.map(f => {
+      const p = f.properties;
+      const id = (window.zntSpatial ? window.zntSpatial.dapatkanIdZona(p) : String(p.histzone || p.Zona_ID || p.ID_ZONA || '')).trim().toUpperCase();
+      const luasan = window.zntSpatial ? window.zntSpatial.dapatkanLuasan(p) : (p.luasan || p.LUASAN || '-');
+      const penggunaan = window.zntSpatial ? window.zntSpatial.dapatkanPenggunaan(p) : (p.PENGGUNAAN ?? p.penggunaan ?? 'Pertanian');
+      return {
+        id: id,
+        surveyor: p.Surveyor || p.SURVEYOR || 'Belum ditugaskan',
+        penggunaan: penggunaan,
+        luasan: luasan,
+        status: p.STATUS || 'Belum',
+        titikSelesai: p.TITIK_SELESAI || 0,
+        updatedAt: p.updatedAt || new Date().toISOString(),
+        feature: f
+      };
+    });
+
+    renderTable();
+
+    if (banner && bannerText) {
+      banner.style.display = 'block';
+      bannerText.innerHTML = `<strong>${res.summary.titikMapped} dari ${res.summary.totalTitik} titik</strong> berhasil dipetakan ke <strong>${res.summary.totalZona} zona</strong> dalam ${res.summary.durationMs}ms. Status: <strong>${res.summary.zonaSiap} Siap</strong>, <strong>${res.summary.zonaProses} Proses</strong>, <strong>${res.summary.zonaBelum} Belum</strong>.`;
+    }
+
+    const titleBadge = document.getElementById('progressZoneTotalBadge');
+    if (titleBadge) titleBadge.textContent = `(${allZones.length} Zona)`;
+  }
+
+  // Simpan progres seluruh zona hasil hitung spasial ke Cloud Firestore secara massal (batch)
+  async function simpanSemuaProgresKeCloud() {
+    if (!isAdminVerified) {
+      alert('Hanya admin terverifikasi yang dapat menyimpan progres ke cloud Firestore.');
+      return;
+    }
+    if (!db()) {
+      alert('Firestore belum terhubung.');
+      return;
+    }
+    if (allZones.length === 0) {
+      alert('Tidak ada data zona yang dapat disinkronkan.');
+      return;
+    }
+
+    const btn = document.getElementById('btnApplySpatialToCloud');
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = 'Menyimpan ke Cloud…';
+    }
+
+    try {
+      let batch = db().batch();
+      let count = 0;
+      const now = firebase.firestore.FieldValue.serverTimestamp();
+
+      for (let i = 0; i < allZones.length; i++) {
+        const z = allZones[i];
+        if (!z.id) continue;
+        const titikInt = parseInt(z.titikSelesai, 10) || 0;
+        const validStatus = ['Belum', 'Proses', 'Selesai', 'Masalah'].includes(z.status) ? z.status : 'Belum';
+        const ref = db().collection('progressPublic').doc(z.id);
+        batch.set(ref, {
+          status: validStatus,
+          titikSelesai: titikInt,
+          updatedAt: now
+        });
+        count++;
+
+        if (count % 400 === 0) {
+          await batch.commit();
+          batch = db().batch();
+        }
+      }
+
+      if (count % 400 !== 0) {
+        await batch.commit();
+      }
+
+      alert(`Sukses! ${count} progres zona berhasil disinkronkan ke Cloud Firestore.`);
+      if (window.zntSync && window.zntSync.broadcast) {
+        window.zntSync.broadcast('PROGRESS_BATCH_UPDATED', { count });
+      }
+    } catch (err) {
+      console.error('Gagal simpan progres batch ke Firestore:', err);
+      alert(`Gagal menyimpan ke Cloud Firestore: ${err.message}`);
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = '☁️ Simpan Semua Progres ke Cloud';
+      }
+    }
+  }
+
+  // Handler saat admin mengunggah berkas polygon GeoJSON baru (misal hasil export SIPENTA)
+  async function handleGeoJSONUpload(e) {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+
+    const status = document.getElementById('progressStatus');
+    if (status) status.textContent = `Membaca berkas polygon ${file.name}…`;
+
+    try {
+      const text = await file.text();
+      let cleanText = text;
+      if (cleanText.charCodeAt(0) === 0xfeff) {
+        cleanText = cleanText.slice(1);
+      }
+      const parsed = JSON.parse(cleanText);
+
+      if (!parsed || parsed.type !== 'FeatureCollection' || !Array.isArray(parsed.features) || parsed.features.length === 0) {
+        throw new Error('Berkas tidak valid. Pastikan format GeoJSON FeatureCollection dengan minimal 1 fitur polygon.');
+      }
+
+      masterGeoJSON = parsed;
+
+      // Simpan ke IndexedDB lokal agar persist saat reload & terbaca di dashboard publik
+      if (window.zntSpatial && typeof window.zntSpatial.simpanPolygonLokal === 'function') {
+        await window.zntSpatial.simpanPolygonLokal(parsed);
+      }
+      if (window.zntSync && window.zntSync.broadcast) {
+        window.zntSync.broadcast('POLYGON_UPDATED', { count: parsed.features.length });
+      }
+
+      // Jalankan hitung spasial otomatis point-in-polygon terhadap titik yang ada
+      await jalankanHitungSpasial(true);
+
+      const statusEl = document.getElementById('progressStatus');
+      if (statusEl) {
+        statusEl.textContent = `✅ Berhasil memuat ${masterGeoJSON.features.length} polygon dari ${file.name}.`;
+      }
+
+      alert(`Berhasil mengunggah ${masterGeoJSON.features.length} polygon zona dari SIPENTA!\n\nSebaran titik survei telah dipetakan secara otomatis. Klik 'Simpan Semua Progres ke Cloud' jika ingin memperbarui Dashboard Publik.`);
+    } catch (err) {
+      console.error('Gagal mengunggah GeoJSON:', err);
+      alert(`Gagal memproses GeoJSON: ${err.message}`);
+      if (status) status.textContent = `Gagal memproses GeoJSON: ${err.message}`;
+    } finally {
+      e.target.value = '';
+    }
+  }
+
   async function loadData() {
     const status = document.getElementById('progressStatus');
     status.textContent = 'Memuat data Master Zona dan Surveyor…';
@@ -99,15 +331,24 @@
       surveyorList = parseSurveyorCSV(csvText);
       populateSurveyorDropdown();
 
-      // 2. Muat Master_Zona.geojson (utamakan versi teroptimasi)
-      const resGeo = await fetchWithFallback([
-        'public-data/Master_Zona.geojson?v=20261103',
-        '../docs/public-data/Master_Zona.geojson?v=20261103',
-        '../data/geojson/zona/Master_Zona.geojson',
-        'data/geojson/zona/Master_Zona.geojson',
-        'public-data/public-zona.geojson'
-      ]);
-      masterGeoJSON = await resGeo.json();
+      // 2. Muat Master_Zona.geojson (utamakan dari IndexedDB lokal jika admin pernah upload)
+      let customPolygon = null;
+      if (window.zntSpatial && typeof window.zntSpatial.muatPolygonLokal === 'function') {
+        customPolygon = await window.zntSpatial.muatPolygonLokal();
+      }
+
+      if (customPolygon && Array.isArray(customPolygon.features) && customPolygon.features.length > 0) {
+        masterGeoJSON = customPolygon;
+      } else {
+        const resGeo = await fetchWithFallback([
+          'public-data/Master_Zona.geojson?v=20261103',
+          '../docs/public-data/Master_Zona.geojson?v=20261103',
+          '../data/geojson/zona/Master_Zona.geojson',
+          'data/geojson/zona/Master_Zona.geojson',
+          'public-data/public-zona.geojson'
+        ]);
+        masterGeoJSON = await resGeo.json();
+      }
 
       // 3. Terapkan override dari zntSync jika ada
       if (window.zntSync) {
@@ -128,12 +369,15 @@
       // 5. Normalisasi data zona untuk tabel admin
       allZones = masterGeoJSON.features.map(f => {
         const p = f.properties;
-        const id = String(p.Zona_ID || p.ID_ZONA || '').trim().toUpperCase();
+        const id = (window.zntSpatial ? window.zntSpatial.dapatkanIdZona(p) : String(p.histzone || p.Zona_ID || p.ID_ZONA || '')).trim().toUpperCase();
         const firestoreP = progressMap[id] || {};
+        const luasan = window.zntSpatial ? window.zntSpatial.dapatkanLuasan(p) : (p.luasan || p.LUASAN || '-');
+        const penggunaan = window.zntSpatial ? window.zntSpatial.dapatkanPenggunaan(p) : (p.PENGGUNAAN ?? p.penggunaan ?? 'Pertanian');
         return {
           id: id,
           surveyor: p.Surveyor || p.SURVEYOR || 'Belum ditugaskan',
-          penggunaan: p.PENGGUNAAN ?? p.penggunaan ?? 'Pertanian',
+          penggunaan: penggunaan,
+          luasan: luasan,
           status: firestoreP.status || p.STATUS || p.status || 'Belum',
           titikSelesai: firestoreP.titikSelesai != null ? firestoreP.titikSelesai : (p.TITIK_SELESAI || 0),
           updatedAt: firestoreP.updatedAt || p.updatedAt || null,
@@ -169,6 +413,7 @@
       return z.id.toLowerCase().includes(q) ||
              z.surveyor.toLowerCase().includes(q) ||
              z.penggunaan.toLowerCase().includes(q) ||
+             (z.luasan && z.luasan.toLowerCase().includes(q)) ||
              z.status.toLowerCase().includes(q);
     });
 
@@ -181,7 +426,7 @@
     removeEditRows();
 
     if (filtered.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#5f6368">Tidak ada data zona yang cocok</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#5f6368">Tidak ada data zona yang cocok</td></tr>';
       if (currentEditZone && !isAddMode) document.getElementById('progressForm').style.display = 'none';
       return;
     }
@@ -194,8 +439,9 @@
           <td><strong>${esc(z.id)}</strong></td>
           <td>${esc(z.surveyor)}</td>
           <td><span style="font-size:0.9em;opacity:0.85;">${esc(z.penggunaan) || '-'}</span></td>
+          <td style="font-size:0.85em;color:#5f6368">${esc(z.luasan) || '-'}</td>
           <td>${badgeHtml}</td>
-          <td>${z.titikSelesai}</td>
+          <td><strong>${z.titikSelesai}</strong></td>
           <td style="font-size:0.85em;color:#5f6368">${formatDate(z.updatedAt)}</td>
           <td style="white-space:nowrap;">
             <button type="button" class="btn-zone-edit" data-id="${esc(z.id)}" style="background:#007aff;color:#fff;border:none;padding:6px 12px;border-radius:8px;font-weight:600;font-size:12px;cursor:pointer;margin-right:6px;">Edit</button>
@@ -257,6 +503,29 @@
     document.getElementById('btnExportGeoJSON').addEventListener('click', exportGeoJSON);
     document.getElementById('btnResetMaster').addEventListener('click', resetMasterData);
 
+    // Tombol SIPENTA GeoJSON & Hitung Spasial Otomatis
+    const btnUpload = document.getElementById('btnUploadGeoJSON');
+    const inputUpload = document.getElementById('fileInputGeoJSON');
+    if (btnUpload && inputUpload) {
+      btnUpload.addEventListener('click', () => inputUpload.click());
+      inputUpload.addEventListener('change', handleGeoJSONUpload);
+    }
+
+    const btnAutoRecalc = document.getElementById('btnAutoRecalcSpatial');
+    if (btnAutoRecalc) {
+      btnAutoRecalc.addEventListener('click', () => jalankanHitungSpasial(true));
+    }
+
+    const btnApplyCloud = document.getElementById('btnApplySpatialToCloud');
+    if (btnApplyCloud) {
+      btnApplyCloud.addEventListener('click', simpanSemuaProgresKeCloud);
+    }
+
+    // Dengarkan event titik diperbarui dari admin-titik untuk sinkronisasi otomatis
+    window.addEventListener('znt:points-updated', () => {
+      jalankanHitungSpasial(false);
+    });
+
     // Filter Search
     const searchInput = document.getElementById('zoneSearchInput');
     if (searchInput) {
@@ -298,7 +567,7 @@
     const editRow = document.createElement('tr');
     editRow.className = 'zone-edit-row';
     const td = document.createElement('td');
-    td.colSpan = 7;
+    td.colSpan = 8;
     td.style.padding = '0 8px';
     editRow.appendChild(td);
     row.insertAdjacentElement('afterend', editRow);
@@ -390,8 +659,8 @@
     isAddMode = false;
   }
 
-  // Format ID Zona: huruf Z + tepat 3 digit (Z001, Z002, Z015, ...)
-  const ZONE_ID_REGEX = /^Z\d{3}$/;
+  // Format ID Zona: mendukung format lama Z001 atau kode histzone SIPENTA (alfanumerik 2-50 karakter)
+  const ZONE_ID_REGEX = /^[A-Za-z0-9_.\-\/]{2,50}$/;
   const FORM_ERR_IDS = {
     zoneId: 'errZoneId',
     penggunaan: 'errPenggunaan',
@@ -420,7 +689,7 @@
     const errors = {};
 
     if (!ZONE_ID_REGEX.test(v.zoneId)) {
-      errors.zoneId = 'Format ID Zona harus Z001, Z002, dst.';
+      errors.zoneId = 'Format ID Zona / Histzone harus alfanumerik (2-50 karakter)';
     } else if (isAddMode && allZones.some(z => z.id === v.zoneId)) {
       errors.zoneId = `ID Zona ${v.zoneId} sudah ada`;
     }
@@ -647,6 +916,9 @@
     if (window.zntSync) {
       window.zntSync.resetToMaster();
     }
+    if (window.zntSpatial && typeof window.zntSpatial.hapusPolygonLokal === 'function') {
+      await window.zntSpatial.hapusPolygonLokal();
+    }
     const status = document.getElementById('progressStatus');
     if (db()) {
       try {
@@ -677,11 +949,18 @@
     salinan.features.forEach((f) => {
       const p = f.properties || {};
       Object.keys(p).forEach((k) => { if (k.charAt(0) === '_') delete p[k]; });
-      const id = String(p.Zona_ID || p.ID_ZONA || '').trim().toUpperCase();
+      const id = (window.zntSpatial ? window.zntSpatial.dapatkanIdZona(p) : String(p.histzone || p.Zona_ID || p.ID_ZONA || '')).trim().toUpperCase();
       const z = terkini.get(id);
       if (z) {
         p.STATUS = z.status;
         p.TITIK_SELESAI = z.titikSelesai;
+        if (z.surveyor && z.surveyor !== 'Belum ditugaskan') {
+          p.Surveyor = z.surveyor;
+          p.SURVEYOR = z.surveyor;
+        }
+        if (z.penggunaan) {
+          p.PENGGUNAAN = z.penggunaan;
+        }
       }
     });
     const blob = new Blob([JSON.stringify(salinan)], { type: 'application/geo+json' });

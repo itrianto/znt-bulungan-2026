@@ -244,6 +244,12 @@
       background: rgba(255, 255, 255, 0.2) !important;
     }
 
+    body.dark #spatialSummaryBanner {
+      background: rgba(52, 168, 83, 0.18) !important;
+      border-color: rgba(52, 168, 83, 0.4) !important;
+      color: #f2f2f7 !important;
+    }
+
     /* ====== TABEL (CLEAR GLASS) ====== */
     .table-scroll {
       overflow-x: auto !important;
@@ -367,7 +373,13 @@
 </head>
 <body>
   <header class="header">
-    <div class="brand"><span class="brand__mark">Z</span><h1 class="header__title">Admin <span>ZNT Bulungan</span></h1></div>
+    <div class="brand">
+      <span class="brand__mark">Z</span>
+      <div class="header__title-group" style="display:flex;flex-direction:column;gap:2px;">
+        <h1 class="header__title" style="font-size:1.05rem;line-height:1.2;margin:0;">Admin Kendali Pembaruan ZNT Bulungan</h1>
+        <p class="header__subtitle" style="font-size:0.75rem;opacity:0.85;margin:0;font-weight:500;">Panel Kontrol & Manajemen Data</p>
+      </div>
+    </div>
     <div class="header__actions" style="display:flex;align-items:center;gap:12px;">
       <a class="header__btn" href="index.html">Dashboard Publik</a>
       <button class="header__btn" id="themeToggle" type="button" onclick="toggleTheme()">
@@ -491,9 +503,25 @@
       <div class="section-heading" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
         <h2 class="chart-title" id="progressTitle">Manajemen & Progres Zona <span id="progressZoneTotalBadge"></span></h2>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button type="button" id="btnUploadGeoJSON" class="header__btn" style="background:#007aff !important;color:#fff !important;border:none !important;" title="Unggah berkas GeoJSON hasil ekspor SIPENTA ATR/BPN">🗺️ Unggah Polygon SIPENTA</button>
+          <input type="file" id="fileInputGeoJSON" accept=".geojson,.json" style="display:none;">
+          <button type="button" id="btnAutoRecalcSpatial" class="header__btn" style="background:#34a853 !important;color:#fff !important;border:none !important;" title="Hitung otomatis sebaran titik survei ke polygon zona">⚡ Hitung Otomatis</button>
           <button type="button" id="btnNewZone" class="header__btn">+ Tambah Zona Baru</button>
           <button type="button" id="btnExportGeoJSON" class="header__btn" title="Unduh backup data terkini (Master_Zona_TANGGAL.geojson)">📥 Ekspor Backup GeoJSON</button>
           <button type="button" id="btnResetMaster" class="header__btn" style="background:rgba(217,83,79,0.2) !important;" title="Menghapus semua input admin (termasuk Firestore) dan kembali ke Master_Zona.geojson">🔄 Kembalikan ke Data Awal</button>
+        </div>
+      </div>
+
+      <!-- Banner Hasil Perhitungan Spasial Otomatis -->
+      <div id="spatialSummaryBanner" style="display:none;margin:16px 0;padding:14px 18px;border-radius:14px;background:rgba(52,168,83,0.12);border:1px solid rgba(52,168,83,0.35);color:#1c1c1e;">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
+          <div>
+            <strong style="color:#2e7d32;display:flex;align-items:center;gap:6px;">
+              <span>⚡</span> <span>Perhitungan Spasial Point-in-Polygon</span>
+            </strong>
+            <p id="spatialSummaryText" style="margin:4px 0 0 0;font-size:13px;opacity:0.9;"></p>
+          </div>
+          <button type="button" id="btnApplySpatialToCloud" class="header__btn" style="padding:8px 16px;font-size:13px;background:#2e7d32 !important;color:#fff !important;border:none !important;border-radius:8px;font-weight:600;">☁️ Simpan Semua Progres ke Cloud</button>
         </div>
       </div>
 
@@ -509,8 +537,8 @@
         <input type="hidden" id="formMode" value="edit">
 
         <div style="margin-bottom:12px;" id="zoneIdInputGroup">
-          <label for="inputZoneId">ID Zona (Format Z001 - Z999)</label>
-          <input type="text" id="inputZoneId" placeholder="Contoh: Z001">
+          <label for="inputZoneId">ID Zona / Histzone</label>
+          <input type="text" id="inputZoneId" placeholder="Contoh: Z001 atau kode histzone SIPENTA">
           <small class="field-error" id="errZoneId" role="alert" style="display:none;color:#d93025;font-size:12px;margin-top:4px;"></small>
         </div>
 
@@ -560,9 +588,10 @@
         <table class="zone-table">
           <thead>
             <tr>
-              <th>ID Zona</th>
+              <th>ID Zona / Histzone</th>
               <th>Surveyor</th>
               <th>Penggunaan</th>
+              <th>Luas</th>
               <th>Status</th>
               <th>Titik Selesai</th>
               <th>Diperbarui</th>
@@ -570,7 +599,7 @@
             </tr>
           </thead>
           <tbody id="progressTableBody">
-            <tr><td colspan="7" style="text-align:center">Memuat data zona…</td></tr>
+            <tr><td colspan="8" style="text-align:center">Memuat data zona…</td></tr>
           </tbody>
         </table>
       </div>
@@ -700,6 +729,7 @@
   <script src="js/firebase-config.js"></script>
   <script src="js/auth.js"></script>
   <script src="js/sync.js"></script>
+  <script src="js/spatial-engine.js?v=20261117"></script>
   <script src="js/admin-surveyor.js"></script>
   <script src="js/admin-progress.js"></script>
   <script src="js/admin-titik.js"></script>

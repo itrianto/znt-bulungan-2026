@@ -426,6 +426,9 @@
 
       cloudTitik = allPoints;
       hasPendingChanges = false;
+      try {
+        document.dispatchEvent(new CustomEvent('znt:points-updated', { detail: allPoints }));
+      } catch (_) {}
 
       if (statusMsg) {
         statusMsg.innerHTML = `🎉 <strong>Berhasil dipublikasikan!</strong> Sebanyak ${allPoints.length} titik telah aktif di Dashboard Publik secara realtime.`;
@@ -609,6 +612,7 @@
   window.zntAdminTitik = {
     init: init,
     muatDataTitik: muatDataTitik,
-    publikasikanTitikKeCloud: publikasikanTitikKeCloud
+    publikasikanTitikKeCloud: publikasikanTitikKeCloud,
+    getPoints: () => cloudTitik || []
   };
 })();

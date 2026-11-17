@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dashboard Monitoring ZNT Kabupaten Bulungan</title>
+  <title>Dashboard Kendali Pembaruan ZNT Bulungan</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
@@ -62,53 +62,72 @@
       box-shadow: var(--glass-shadow) !important;
       width: min(1440px, calc(100% - 28px)) !important;
       margin: 16px auto 0 !important;
-      padding: 14px 24px !important;
+      padding: 12px 24px !important;
       color: var(--text-main) !important;
-      display: grid !important;
-      grid-template-columns: 1fr auto 1fr !important;
+      display: flex !important;
+      justify-content: space-between !important;
       align-items: center !important;
-    }
-
-    .header__spacer {
-      grid-column: 1 !important;
+      gap: 16px !important;
     }
 
     .brand {
       display: flex !important;
       align-items: center !important;
-      justify-content: center !important;
-      grid-column: 2 !important;
-      gap: 10px !important;
-      margin: 0 auto !important;
+      gap: 12px !important;
+      margin: 0 !important;
+    }
+
+    .brand__mark {
+      background: var(--accent) !important;
+      flex-shrink: 0 !important;
+    }
+
+    .header__title-group {
+      display: flex !important;
+      flex-direction: column !important;
+      gap: 2px !important;
+    }
+
+    .header__title {
+      font-size: 1.12rem !important;
+      font-weight: 700 !important;
+      color: var(--text-main) !important;
+      margin: 0 !important;
+      line-height: 1.25 !important;
+    }
+
+    .header__subtitle {
+      font-size: 0.8rem !important;
+      color: var(--text-sub) !important;
+      opacity: 0.88 !important;
+      margin: 0 !important;
+      font-weight: 500 !important;
+      line-height: 1.2 !important;
     }
 
     .header__actions {
       display: flex !important;
       align-items: center !important;
       gap: 12px !important;
-      grid-column: 3 !important;
-      justify-self: end !important;
+      flex-shrink: 0 !important;
     }
 
-    .header__title,
-    .header__title span {
-      color: var(--text-main) !important;
-    }
-
-    .brand__mark {
-      background: var(--accent) !important;
-    }
-
-    @media (max-width: 680px) {
+    @media (max-width: 768px) {
       .header {
-        display: flex !important;
-        justify-content: space-between !important;
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 12px !important;
+        padding: 14px 18px !important;
       }
-      .header__spacer {
-        display: none !important;
+      .header__actions {
+        width: 100% !important;
+        justify-content: flex-end !important;
       }
-      .brand {
-        margin: 0 !important;
+      .header__title {
+        font-size: 1rem !important;
+      }
+      .header__subtitle {
+        font-size: 0.75rem !important;
       }
     }
 
@@ -423,8 +442,13 @@
 </head>
 <body>
   <header class="header">
-    <div class="header__spacer" aria-hidden="true"></div>
-    <div class="brand"><span class="brand__mark">Z</span><h1 class="header__title">ZNT <span>Bulungan</span></h1></div>
+    <div class="brand">
+      <span class="brand__mark">Z</span>
+      <div class="header__title-group">
+        <h1 class="header__title">Dashboard Kendali Pembaruan ZNT Bulungan</h1>
+        <p class="header__subtitle">Rekapitulasi Capaian Survei Zona dan Sebaran Titik Sampel</p>
+      </div>
+    </div>
     <div class="header__actions">
       <a href="admin.html" class="header__btn">Login Admin</a>
       <button class="header__btn" id="themeToggle" type="button" onclick="toggleTheme()">
@@ -598,11 +622,12 @@
   <script src="js/auth.js"></script>
   <script src="js/surveyor.js"></script>
   <script src="js/comment-public.js"></script>
-  <script src="js/progress.js?v=20261103"></script>
-  <script src="js/sync.js?v=20261103"></script>
-  <script src="js/map.js?v=20261103"></script>
-  <script src="js/charts.js?v=20261103"></script>
-  <script src="js/main.js?v=20261103"></script>
+  <script src="js/progress.js?v=20261117"></script>
+  <script src="js/sync.js?v=20261117"></script>
+  <script src="js/spatial-engine.js?v=20261117"></script>
+  <script src="js/map.js?v=20261117"></script>
+  <script src="js/charts.js?v=20261117"></script>
+  <script src="js/main.js?v=20261117"></script>
   <script>
     // Toggle theme khusus index.html
     function toggleTheme() {
