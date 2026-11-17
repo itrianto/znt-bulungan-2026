@@ -290,14 +290,9 @@
 
       masterGeoJSON = parsed;
 
-      // Simpan ke IndexedDB lokal agar persist saat reload & terbaca di dashboard publik
+      // Simpan ke IndexedDB lokal agar persist saat reload di browser ini
       if (window.zntSpatial && typeof window.zntSpatial.simpanPolygonLokal === 'function') {
-        await window.zntSpatial.simpanPolygonLokal(parsed, {
-          source: 'admin_upload',
-          fileName: file.name,
-          updatedAtTime: Date.now(),
-          featureCount: parsed.features.length
-        });
+        await window.zntSpatial.simpanPolygonLokal(parsed);
       }
       if (window.zntSync && window.zntSync.broadcast) {
         window.zntSync.broadcast('POLYGON_UPDATED', { count: parsed.features.length });
@@ -311,149 +306,17 @@
         statusEl.textContent = `✅ Berhasil memuat ${masterGeoJSON.features.length} polygon dari ${file.name}.`;
       }
 
-      const tanyaPublikasi = confirm(
-        `✅ Berhasil membaca ${masterGeoJSON.features.length} polygon zona dari ${file.name}!\n` +
-        `Sebaran titik survei telah otomatis dipetakan ke zona masing-masing.\n\n` +
-        `Apakah Anda ingin LANGSUNG mempublikasikannya ke Firebase Cloud Storage agar otomatis aktif untuk seluruh pengunjung publik?`
+      alert(
+        `✅ Berhasil membaca ${masterGeoJSON.features.length} polygon zona dari ${file.name}!\n\n` +
+        `Sebaran titik survei telah otomatis dihitung dan dipetakan ke zona masing-masing.\n\n` +
+        `Klik tombol 'Simpan Semua Progres ke Cloud' untuk memperbarui progres capaian titik ke Dashboard Publik.`
       );
-
-      if (tanyaPublikasi) {
-        await publikasikanPolygonKeCloudStorage();
-      }
     } catch (err) {
       console.error('Gagal mengunggah GeoJSON:', err);
       alert(`Gagal memproses GeoJSON: ${err.message}`);
       if (status) status.textContent = `Gagal memproses GeoJSON: ${err.message}`;
     } finally {
       e.target.value = '';
-    }
-  }
-
-  // Publikasikan polygon master ke Firebase Cloud Storage
-  async function publikasikanPolygonKeCloudStorage() {
-    if (!masterGeoJSON || !Array.isArray(masterGeoJSON.features) || masterGeoJSON.features.length === 0) {
-      alert('Tidak ada polygon aktif untuk dipublikasikan. Silakan unggah polygon SIPENTA terlebih dahulu.');
-      return;
-    }
-
-    if (typeof firebase === 'undefined' || !firebase.storage || !firebase.firestore) {
-      alert('Firebase Storage / Firestore SDK belum siap.');
-      return;
-    }
-
-    const auth = firebase.auth();
-    const user = auth.currentUser;
-    if (!user) {
-      alert('Sesi admin berakhir. Silakan login kembali di halaman Admin.');
-      return;
-    }
-
-    const btnPublish = document.getElementById('btnPublishPolygonCloud');
-    const btnBanner = document.getElementById('btnPublishPolygonCloudBanner');
-    const progressBox = document.getElementById('polygonUploadProgress');
-    const progressBar = document.getElementById('polygonProgressBar');
-    const progressText = document.getElementById('polygonUploadProgressText');
-    const progressPercent = document.getElementById('polygonUploadProgressPercent');
-
-    try {
-      if (btnPublish) btnPublish.disabled = true;
-      if (btnBanner) btnBanner.disabled = true;
-      if (progressBox) progressBox.style.display = 'block';
-      if (progressBar) progressBar.style.width = '5%';
-      if (progressPercent) progressPercent.textContent = '5%';
-      if (progressText) progressText.textContent = 'Menyiapkan berkas polygon GeoJSON…';
-
-      const jsonStr = JSON.stringify(masterGeoJSON);
-      const blob = new Blob([jsonStr], { type: 'application/geo+json' });
-      const sizeMB = (blob.size / (1024 * 1024)).toFixed(2);
-
-      if (progressText) progressText.textContent = `Mengunggah ke Firebase Storage (${sizeMB} MB)…`;
-
-      const storage = firebase.storage();
-      const storageRef = storage.ref('polygons/master_zona.geojson');
-      const uploadTask = storageRef.put(blob, {
-        contentType: 'application/geo+json',
-        cacheControl: 'public, max-age=3600'
-      });
-
-      uploadTask.on(
-        'state_changed',
-        (snapshot) => {
-          const pct = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
-          if (progressBar) progressBar.style.width = `${pct}%`;
-          if (progressPercent) progressPercent.textContent = `${pct}%`;
-          if (progressText) {
-            progressText.textContent = `Mengunggah: ${(snapshot.bytesTransferred / (1024 * 1024)).toFixed(1)} / ${sizeMB} MB (${pct}%)`;
-          }
-        },
-        (error) => {
-          console.error('Error Firebase Storage upload:', error);
-          let pesan = error.message;
-          if (error.code === 'storage/bucket-not-found' || error.message.includes('bucket') || error.message.includes('not set up')) {
-            pesan = 'Firebase Storage belum diaktifkan di Firebase Console.\n\nBuka https://console.firebase.google.com/project/znt-bulungan-2026/storage dan klik "Get Started" (Mulai).';
-          } else if (error.code === 'storage/unauthorized') {
-            pesan = 'Akses ditolak oleh Firebase Storage. Pastikan storage.rules sudah di-deploy dan akun Anda terdaftar di Firestore admins.';
-          }
-          alert(`Gagal mempublikasikan polygon: ${pesan}`);
-          if (progressBox) progressBox.style.display = 'none';
-          if (btnPublish) btnPublish.disabled = false;
-          if (btnBanner) btnBanner.disabled = false;
-        },
-        async () => {
-          try {
-            if (progressText) progressText.textContent = 'Menyimpan tautan publikasi ke Cloud Firestore…';
-            const downloadUrl = await uploadTask.snapshot.ref.getDownloadURL();
-
-            const firestoreDb = firebase.firestore();
-            const now = firebase.firestore.FieldValue.serverTimestamp();
-            await firestoreDb.collection('sebaranTitik').doc('polygon_meta').set({
-              downloadUrl: downloadUrl,
-              storagePath: 'polygons/master_zona.geojson',
-              featureCount: masterGeoJSON.features.length,
-              sizeBytes: blob.size,
-              updatedAt: now,
-              updatedBy: user.email || user.uid
-            });
-
-            // Simpan juga ke cache lokal IndexedDB
-            if (window.zntSpatial && typeof window.zntSpatial.simpanPolygonLokal === 'function') {
-              await window.zntSpatial.simpanPolygonLokal(masterGeoJSON, {
-                updatedAtTime: Date.now(),
-                featureCount: masterGeoJSON.features.length,
-                source: 'cloud_storage'
-              });
-            }
-
-            if (window.zntSync && window.zntSync.broadcast) {
-              window.zntSync.broadcast('POLYGON_UPDATED', { count: masterGeoJSON.features.length });
-            }
-
-            if (progressBar) progressBar.style.width = '100%';
-            if (progressPercent) progressPercent.textContent = '100%';
-            if (progressText) progressText.textContent = `✅ Berhasil dipublikasikan ke Cloud (${masterGeoJSON.features.length} zona).`;
-
-            setTimeout(() => {
-              if (progressBox) progressBox.style.display = 'none';
-              if (btnPublish) btnPublish.disabled = false;
-              if (btnBanner) btnBanner.disabled = false;
-            }, 3500);
-
-            alert(`🎉 Sukses! Sebanyak ${masterGeoJSON.features.length} polygon zona SIPENTA telah dipublikasikan ke Firebase Cloud Storage.\n\nDashboard Publik otomatis menampilkan polygon terbaru ini tanpa perlu deploy git manual!`);
-          } catch (metaErr) {
-            console.error('Gagal menyimpan metadata polygon:', metaErr);
-            alert(`Berkas terunggah ke Storage, namun gagal mencatat metadata di Firestore: ${metaErr.message}`);
-            if (progressBox) progressBox.style.display = 'none';
-            if (btnPublish) btnPublish.disabled = false;
-            if (btnBanner) btnBanner.disabled = false;
-          }
-        }
-      );
-    } catch (err) {
-      console.error('Exception saat publikasi polygon:', err);
-      alert(`Gagal mempublikasikan polygon: ${err.message}`);
-      if (progressBox) progressBox.style.display = 'none';
-      if (btnPublish) btnPublish.disabled = false;
-      if (btnBanner) btnBanner.disabled = false;
     }
   }
 
@@ -659,16 +522,6 @@
     const btnApplyCloud = document.getElementById('btnApplySpatialToCloud');
     if (btnApplyCloud) {
       btnApplyCloud.addEventListener('click', simpanSemuaProgresKeCloud);
-    }
-
-    const btnPublishCloud = document.getElementById('btnPublishPolygonCloud');
-    if (btnPublishCloud) {
-      btnPublishCloud.addEventListener('click', publikasikanPolygonKeCloudStorage);
-    }
-
-    const btnPublishCloudBanner = document.getElementById('btnPublishPolygonCloudBanner');
-    if (btnPublishCloudBanner) {
-      btnPublishCloudBanner.addEventListener('click', publikasikanPolygonKeCloudStorage);
     }
 
     // Dengarkan event titik diperbarui dari admin-titik untuk sinkronisasi otomatis
