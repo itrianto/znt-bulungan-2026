@@ -940,8 +940,8 @@
         console.log(`Peta publik memuat ${dataZona.features.length} polygon kustom dari penyimpanan lokal.`);
       } else {
         const resGeo = await fetchWithFallback([
-          'public-data/Master_Zona.geojson?v=20261103',
-          '../docs/public-data/Master_Zona.geojson?v=20261103',
+          'public-data/Master_Zona.geojson?v=20261117_358',
+          '../docs/public-data/Master_Zona.geojson?v=20261117_358',
           '../data/geojson/zona/Master_Zona.geojson',
           'data/geojson/zona/Master_Zona.geojson',
           'public-data/public-zona.geojson'
