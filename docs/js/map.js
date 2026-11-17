@@ -929,23 +929,21 @@
       const listSurveyor = parseSurveyorCSV(csvText);
       inisialisasiSurveyorMap(listSurveyor);
 
-      // 2. Muat Master_Zona.geojson (utamakan dari IndexedDB lokal jika admin pernah upload)
-      let customPolygon = null;
-      if (window.zntSpatial && typeof window.zntSpatial.muatPolygonLokal === 'function') {
-        customPolygon = await window.zntSpatial.muatPolygonLokal();
-      }
+      // 2. Muat Master_Zona.geojson (Prioritas: Cloud Storage -> Cache IndexedDB -> Static File)
+      const fallbackUrls = [
+        'public-data/Master_Zona.geojson?v=20261117_358',
+        '../docs/public-data/Master_Zona.geojson?v=20261117_358',
+        '../data/geojson/zona/Master_Zona.geojson',
+        'data/geojson/zona/Master_Zona.geojson',
+        'public-data/public-zona.geojson'
+      ];
 
-      if (customPolygon && Array.isArray(customPolygon.features) && customPolygon.features.length > 0) {
-        dataZona = customPolygon;
-        console.log(`Peta publik memuat ${dataZona.features.length} polygon kustom dari penyimpanan lokal.`);
+      if (window.zntSpatial && typeof window.zntSpatial.muatPolygonAktif === 'function') {
+        const result = await window.zntSpatial.muatPolygonAktif(fallbackUrls);
+        dataZona = result.data;
+        console.log(`[Peta Publik] Memuat ${dataZona.features.length} polygon dari sumber: ${result.source}`);
       } else {
-        const resGeo = await fetchWithFallback([
-          'public-data/Master_Zona.geojson?v=20261117_358',
-          '../docs/public-data/Master_Zona.geojson?v=20261117_358',
-          '../data/geojson/zona/Master_Zona.geojson',
-          'data/geojson/zona/Master_Zona.geojson',
-          'public-data/public-zona.geojson'
-        ]);
+        const resGeo = await fetchWithFallback(fallbackUrls);
         dataZona = await resGeo.json();
       }
 
@@ -1072,9 +1070,32 @@
     daftarSurveyorCSV: () => Array.from(mapSurveyor.values()).map((s) => ({ nama: s.nama, warna: s.warna }))
   };
 
+  // Listener Firestore realtime untuk pembaruan polygon di Cloud Storage
+  function pasangListenerPolygonCloud() {
+    if (typeof firebase === 'undefined' || !firebase.firestore) return;
+    try {
+      const db = firebase.firestore();
+      let isFirstSnapshot = true;
+      db.collection('sebaranTitik').doc('polygon_meta').onSnapshot(async (doc) => {
+        if (isFirstSnapshot) {
+          isFirstSnapshot = false;
+          return;
+        }
+        if (doc.exists) {
+          console.log('[Peta Publik] Terdeteksi pembaruan polygon di Cloud Storage, memuat ulang…');
+          await muatDataZona();
+          tampilkanToastSinkronisasi('Polygon zona diperbarui dari Cloud!');
+        }
+      }, (err) => {
+        console.warn('Listener polygon_meta error:', err);
+      });
+    } catch (_) {}
+  }
+
   function mulai() {
     initPeta();
     muatDataZona();
+    pasangListenerPolygonCloud();
   }
 
   if (document.readyState === 'loading') {

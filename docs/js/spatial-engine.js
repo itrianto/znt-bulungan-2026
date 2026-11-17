@@ -260,13 +260,16 @@
     });
   }
 
-  async function simpanPolygonLokal(geojson) {
+  async function simpanPolygonLokal(geojson, meta) {
     const db = await bukaDB();
     if (!db) return false;
     return new Promise((resolve) => {
       try {
         const tx = db.transaction(IDB_STORE, 'readwrite');
         tx.objectStore(IDB_STORE).put(geojson, 'active_master_polygon');
+        if (meta) {
+          tx.objectStore(IDB_STORE).put(meta, 'active_master_polygon_meta');
+        }
         tx.oncomplete = () => resolve(true);
         tx.onerror = () => resolve(false);
       } catch (_) {
@@ -290,6 +293,115 @@
     });
   }
 
+  async function muatPolygonMetaLokal() {
+    const db = await bukaDB();
+    if (!db) return null;
+    return new Promise((resolve) => {
+      try {
+        const tx = db.transaction(IDB_STORE, 'readonly');
+        const req = tx.objectStore(IDB_STORE).get('active_master_polygon_meta');
+        req.onsuccess = () => resolve(req.result || null);
+        req.onerror = () => resolve(null);
+      } catch (_) {
+        resolve(null);
+      }
+    });
+  }
+
+  async function ambilMetaCloud() {
+    if (typeof firebase === 'undefined' || !firebase.firestore) return null;
+    try {
+      const db = firebase.firestore();
+      const doc = await db.collection('sebaranTitik').doc('polygon_meta').get();
+      if (doc.exists) {
+        return doc.data();
+      }
+    } catch (e) {
+      console.warn('[Spatial Engine] Gagal memeriksa metadata polygon di Cloud Firestore:', e);
+    }
+    return null;
+  }
+
+  // Pemuat cerdas:
+  // 1. Cek Firestore sebaranTitik/polygon_meta. Jika ada versi Cloud Storage, bandingkan timestamp dengan cache lokal.
+  //    Jika cache lokal sudah sama persis, langsung pakai cache lokal (0ms).
+  //    Jika ada versi cloud lebih baru, unduh dari Firebase Storage CDN & perbarui cache lokal.
+  // 2. Jika offline / belum ada cloud, gunakan IndexedDB lokal.
+  // 3. Fallback ke berkas statis GeoJSON.
+  async function muatPolygonAktif(fallbackUrls = []) {
+    // 1. Cek Cloud
+    try {
+      const cloudMeta = await ambilMetaCloud();
+      const localMeta = await muatPolygonMetaLokal();
+
+      if (cloudMeta && cloudMeta.downloadUrl) {
+        let cloudTime = 0;
+        if (cloudMeta.updatedAt) {
+          if (typeof cloudMeta.updatedAt.toMillis === 'function') {
+            cloudTime = cloudMeta.updatedAt.toMillis();
+          } else if (cloudMeta.updatedAt.seconds) {
+            cloudTime = cloudMeta.updatedAt.seconds * 1000;
+          } else {
+            cloudTime = new Date(cloudMeta.updatedAt).getTime();
+          }
+        }
+        const localTime = localMeta && localMeta.updatedAtTime ? localMeta.updatedAtTime : null;
+
+        // Jika cache lokal masih segar & cocok, gunakan cache
+        if (cloudTime > 0 && localTime === cloudTime) {
+          const cached = await muatPolygonLokal();
+          if (cached && Array.isArray(cached.features) && cached.features.length > 0) {
+            console.log(`[Spatial Engine] Memuat ${cached.features.length} polygon dari IndexedDB (sinkron Cloud Storage v${cloudTime}).`);
+            return { data: cached, source: 'cache_cloud', meta: cloudMeta };
+          }
+        }
+
+        // Unduh dari Firebase Storage
+        console.log('[Spatial Engine] Mengunduh polygon terbaru dari Firebase Cloud Storage…');
+        const res = await fetch(cloudMeta.downloadUrl);
+        if (res.ok) {
+          const cloudGeo = await res.json();
+          if (cloudGeo && Array.isArray(cloudGeo.features) && cloudGeo.features.length > 0) {
+            await simpanPolygonLokal(cloudGeo, {
+              updatedAtTime: cloudTime,
+              featureCount: cloudGeo.features.length,
+              source: 'cloud_storage'
+            });
+            console.log(`[Spatial Engine] Sukses mengunduh & menyimpan ${cloudGeo.features.length} polygon dari Cloud Storage.`);
+            return { data: cloudGeo, source: 'cloud_storage', meta: cloudMeta };
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('[Spatial Engine] Gagal memuat polygon dari Cloud Storage, mencoba alternatif:', err);
+    }
+
+    // 2. Cek IndexedDB lokal
+    try {
+      const localCached = await muatPolygonLokal();
+      if (localCached && Array.isArray(localCached.features) && localCached.features.length > 0) {
+        console.log(`[Spatial Engine] Memuat ${localCached.features.length} polygon dari IndexedDB lokal.`);
+        return { data: localCached, source: 'local_indexeddb' };
+      }
+    } catch (_) {}
+
+    // 3. Fallback ke berkas statis
+    for (const url of fallbackUrls) {
+      try {
+        const res = await fetch(url);
+        if (res.ok) {
+          const staticGeo = await res.json();
+          if (staticGeo && Array.isArray(staticGeo.features) && staticGeo.features.length > 0) {
+            console.log(`[Spatial Engine] Memuat ${staticGeo.features.length} polygon dari berkas statis: ${url}`);
+            return { data: staticGeo, source: 'static_file', url };
+          }
+        }
+      } catch (_) {}
+    }
+
+    throw new Error('Tidak dapat memuat berkas polygon dari Cloud Storage, penyimpanan lokal, maupun berkas statis.');
+  }
+
   async function hapusPolygonLokal() {
     const db = await bukaDB();
     if (!db) return false;
@@ -297,6 +409,7 @@
       try {
         const tx = db.transaction(IDB_STORE, 'readwrite');
         tx.objectStore(IDB_STORE).delete('active_master_polygon');
+        tx.objectStore(IDB_STORE).delete('active_master_polygon_meta');
         tx.oncomplete = () => resolve(true);
         tx.onerror = () => resolve(false);
       } catch (_) {
@@ -315,6 +428,9 @@
     tautkanTitikKeZona,
     simpanPolygonLokal,
     muatPolygonLokal,
+    muatPolygonMetaLokal,
+    ambilMetaCloud,
+    muatPolygonAktif,
     hapusPolygonLokal
   };
 })();

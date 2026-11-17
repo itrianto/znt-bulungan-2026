@@ -4,5 +4,6 @@
     "ignore": ["firebase.json", "**/.*", "**/node_modules/**", "data/**"],
     "cleanUrls": true
   },
-  "firestore": { "rules": "firestore.rules" }
+  "firestore": { "rules": "firestore.rules" },
+  "storage": { "rules": "storage.rules" }
 }
