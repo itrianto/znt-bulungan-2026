@@ -155,6 +155,11 @@
       renderSampleTable();
       updatePublishButtonState();
 
+      // Sinkronkan otomatis ke card Manajemen & Progres Zona
+      try {
+        window.dispatchEvent(new CustomEvent('znt:points-loaded', { detail: cloudTitik }));
+      } catch (_) {}
+
       // Reset info file input
       const sfP = document.getElementById('statusFilePertanian');
       const sfNP = document.getElementById('statusFileNonPertanian');
@@ -257,6 +262,12 @@
       renderPreviewCard();
       renderSampleTable();
       updatePublishButtonState();
+
+      // Sinkronkan pratinjau titik baru secara langsung ke card Manajemen & Progres Zona
+      try {
+        const allStaged = [...(stagedPertanian || []), ...(stagedNonPertanian || [])];
+        window.dispatchEvent(new CustomEvent('znt:points-staged', { detail: allStaged }));
+      } catch (_) {}
 
       const publishStatus = document.getElementById('titikPublishStatus');
       if (publishStatus) {
@@ -617,6 +628,9 @@
     init: init,
     muatDataTitik: muatDataTitik,
     publikasikanTitikKeCloud: publikasikanTitikKeCloud,
-    getPoints: () => cloudTitik || []
+    getPoints: () => {
+      const staged = [...(stagedPertanian || []), ...(stagedNonPertanian || [])];
+      return staged.length > 0 ? staged : (cloudTitik || []);
+    }
   };
 })();

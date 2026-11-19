@@ -6,6 +6,7 @@
   const keluar = document.getElementById('adminLogout');
   const formContainer = document.getElementById('adminAuthForm');
   const verifiedContainer = document.getElementById('adminAuthVerified');
+  const authCard = document.querySelector('.admin-auth-card');
   const emailDisplay = document.getElementById('adminEmailDisplay');
   const togglePassword = document.getElementById('adminTogglePassword');
   const passwordInput = document.getElementById('adminPassword');
@@ -30,6 +31,7 @@
       // Show login form
       formContainer.hidden = false;
       verifiedContainer.hidden = true;
+      if (authCard) authCard.classList.remove('is-verified');
       status.textContent = '';
       masuk.disabled = false;
       masuk.textContent = 'Masuk';
@@ -54,8 +56,10 @@
         // Show verified state
         formContainer.hidden = true;
         verifiedContainer.hidden = false;
+        if (authCard) authCard.classList.add('is-verified');
         emailDisplay.textContent = user.email;
       } else {
+        if (authCard) authCard.classList.remove('is-verified');
         // Not admin
         status.textContent = 'Login berhasil, tetapi akun ini bukan admin.';
         status.style.color = 'var(--issue)';

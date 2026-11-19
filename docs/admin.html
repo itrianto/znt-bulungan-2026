@@ -371,6 +371,247 @@
       padding: 4px !important;
     }
 
+    /* ====== LAYOUT UTAMA ADMIN (1 KOLOM PENUH, BUKAN GRID PETA) ====== */
+    .main {
+      display: flex !important;
+      flex-direction: column !important;
+      gap: 20px !important;
+      width: min(1280px, calc(100% - 28px)) !important;
+      margin: 18px auto 36px !important;
+    }
+
+    .header {
+      width: min(1280px, calc(100% - 28px)) !important;
+    }
+
+    /* ====== KARTU AUTH COMPACT SAAT SUDAH LOGIN ====== */
+    .admin-auth-card {
+      width: 100%;
+      margin: 16px auto !important;
+      padding: 28px !important;
+    }
+
+    .admin-auth-card.is-verified {
+      max-width: 100% !important;
+      margin: 0 !important;
+      padding: 14px 22px !important;
+      transform: none !important;
+    }
+
+    .admin-auth-card.is-verified:hover {
+      transform: none !important;
+    }
+
+    .admin-auth-card.is-verified .admin-auth-verified {
+      display: flex !important;
+      align-items: center !important;
+      justify-content: space-between !important;
+      flex-wrap: wrap !important;
+      gap: 12px !important;
+      text-align: left !important;
+    }
+
+    .admin-auth-card.is-verified .admin-auth-verified__badge {
+      margin-bottom: 0 !important;
+    }
+
+    .admin-auth-card.is-verified .admin-auth-verified__email {
+      margin: 0 !important;
+      font-weight: 600 !important;
+      font-size: 0.92rem !important;
+      flex: 1;
+      min-width: 180px;
+    }
+
+    .admin-auth-card.is-verified #adminLogout {
+      padding: 8px 18px !important;
+      font-size: 13px !important;
+    }
+
+    /* ====== KARTU SECTION ADMIN ====== */
+    .zone-table-card {
+      padding: 22px 24px !important;
+      margin: 0 !important;
+    }
+
+    .section-heading {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .section-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    /* ====== BANNER SPASIAL (LIGHT & DARK) ====== */
+    #spatialSummaryBanner {
+      margin: 14px 0 !important;
+      padding: 14px 18px !important;
+      border-radius: 14px !important;
+      background: rgba(52, 168, 83, 0.12) !important;
+      border: 1px solid rgba(52, 168, 83, 0.35) !important;
+      color: #1c1c1e !important;
+    }
+
+    #spatialSummaryBanner strong.banner-title {
+      color: #1e7e34;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    body.dark #spatialSummaryBanner {
+      background: rgba(52, 168, 83, 0.16) !important;
+      border-color: rgba(52, 168, 83, 0.4) !important;
+      color: #f2f2f7 !important;
+    }
+
+    body.dark #spatialSummaryBanner strong.banner-title {
+      color: #6ee7b7;
+    }
+
+    /* ====== BAR PENCARIAN & FILTER STATUS ====== */
+    .admin-filter-bar {
+      margin: 14px 0;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .admin-search-input,
+    .admin-status-select {
+      padding: 10px 14px !important;
+      border-radius: 12px !important;
+      border: 1px solid rgba(255, 255, 255, 0.65) !important;
+      background: rgba(255, 255, 255, 0.58) !important;
+      color: #1c1c1e !important;
+      font-size: 14px !important;
+      outline: none !important;
+      transition: all 0.2s ease !important;
+    }
+
+    .admin-search-input {
+      flex: 1 1 260px;
+      min-width: 200px;
+    }
+
+    .admin-status-select {
+      width: auto !important;
+      min-width: 185px;
+      flex: 0 0 auto;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    body.dark .admin-search-input,
+    body.dark .admin-status-select {
+      background: rgba(255, 255, 255, 0.08) !important;
+      border-color: rgba(255, 255, 255, 0.16) !important;
+      color: #f2f2f7 !important;
+    }
+
+    body.dark .admin-status-select option {
+      background: #1e1e26;
+      color: #f2f2f7;
+    }
+
+    .admin-search-input:focus,
+    .admin-status-select:focus {
+      border-color: #007aff !important;
+      box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.16) !important;
+    }
+
+    /* ====== KARTU UPLOAD & PREVIEW TITIK (LIGHT & DARK) ====== */
+    .titik-upload-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+      margin: 16px 0;
+    }
+
+    .titik-upload-card {
+      background: rgba(255, 255, 255, 0.32);
+      border-radius: 16px;
+      padding: 20px 16px;
+      text-align: center;
+      transition: transform 0.2s ease, background 0.2s ease;
+    }
+
+    .titik-upload-card--pertanian {
+      border: 2px dashed rgba(52, 168, 83, 0.55);
+    }
+
+    .titik-upload-card--nonpertanian {
+      border: 2px dashed rgba(230, 126, 34, 0.55);
+    }
+
+    body.dark .titik-upload-card {
+      background: rgba(255, 255, 255, 0.06);
+    }
+
+    .titik-preview-card {
+      display: none;
+      background: rgba(255, 255, 255, 0.28);
+      border: 1px solid rgba(255, 255, 255, 0.55);
+      border-radius: 16px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+
+    body.dark .titik-preview-card {
+      background: rgba(255, 255, 255, 0.05);
+      border-color: rgba(255, 255, 255, 0.12);
+    }
+
+    .titik-stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .titik-stat-box {
+      background: rgba(255, 255, 255, 0.42);
+      border: 1px solid rgba(255, 255, 255, 0.5);
+      padding: 12px 10px;
+      border-radius: 12px;
+      text-align: center;
+    }
+
+    body.dark .titik-stat-box {
+      background: rgba(255, 255, 255, 0.07);
+      border-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .titik-stat-label {
+      font-size: 11px;
+      opacity: 0.8;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .titik-stat-value {
+      font-size: 20px;
+      font-weight: 800;
+    }
+
+    .titik-stat-value--ratio {
+      font-size: 17px;
+      color: #1c1c1e;
+    }
+
+    body.dark .titik-stat-value--ratio {
+      color: #f2f2f7;
+    }
+
     /* ====== PENYESUAIAN TAMPILAN PONSEL (ADMIN) ====== */
     @media (max-width: 768px) {
       body {
@@ -409,44 +650,65 @@
       .main {
         width: calc(100% - 16px) !important;
         margin: 10px auto 24px !important;
-        gap: 12px !important;
+        gap: 14px !important;
       }
       .admin-auth-card,
       .zone-table-card {
         padding: 14px !important;
         border-radius: 16px !important;
       }
+      .admin-auth-card.is-verified {
+        padding: 12px 14px !important;
+      }
+      .admin-auth-card.is-verified #adminLogout {
+        width: 100%;
+      }
       .section-heading {
         flex-direction: column !important;
         align-items: stretch !important;
         gap: 10px !important;
       }
-      #progressSection .section-heading > div,
-      #titikSection .section-heading > div {
+      .section-actions {
         display: grid !important;
         grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
         gap: 8px !important;
         width: 100% !important;
       }
       #btnResetMaster,
-      #btnNewAssignment {
+      #btnPublishTitik {
         grid-column: 1 / -1 !important;
         width: 100% !important;
       }
-      #zoneSearchInput {
+      .titik-upload-grid {
+        grid-template-columns: 1fr !important;
+        gap: 10px !important;
+      }
+      .titik-upload-card {
+        padding: 16px 14px !important;
+      }
+      .titik-stats-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 8px !important;
+      }
+      .admin-filter-bar {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 8px !important;
+      }
+      .admin-search-input,
+      .admin-status-select,
+      #titikFilterSearch {
         min-width: 0 !important;
         width: 100% !important;
+        max-width: none !important;
         font-size: 16px !important;
       }
-      #assignmentForm,
       #progressForm {
         padding: 14px !important;
         margin: 12px 0 !important;
       }
       #adminEmail,
       #adminPassword,
-      #displayName,
-      #zones,
       #progressTitik,
       #progressStatusSelect,
       #inputZoneId,
@@ -563,54 +825,101 @@
       </div>
     </section>
 
-    <section class="zone-table-card" id="surveyorSection" style="display:none" aria-labelledby="surveyorTitle">
+    <section class="zone-table-card" id="titikSection" style="display:none" aria-labelledby="titikTitle">
       <div class="section-heading">
-        <h2 class="chart-title" id="surveyorTitle">Pengelolaan Surveyor</h2>
-        <button type="button" id="btnNewAssignment" class="header__btn">+ Penugasan Baru</button>
+        <div>
+          <h2 class="chart-title" id="titikTitle">Manajemen Sebaran Titik Survei <span id="titikBadgeTotal"></span></h2>
+          <p class="placeholder__text" id="titikCloudStatus" style="font-size:13px;margin-top:4px;">Memeriksa status titik di cloud…</p>
+        </div>
+        <div class="section-actions">
+          <button type="button" id="btnExportTitikJson" class="header__btn" title="Unduh data titik terkini sebagai cadangan">📥 Unduh Cadangan JSON</button>
+          <button type="button" id="btnRefreshTitik" class="header__btn" title="Muat ulang dari cloud">🔄 Muat Ulang</button>
+          <button type="button" id="btnPublishTitik" class="header__btn" style="background:#34a853 !important;color:#fff !important;border:none !important;" disabled>🚀 Publikasikan ke Dashboard Publik</button>
+        </div>
       </div>
-      <p class="placeholder__text" id="assignmentStatus"></p>
 
-      <div id="assignmentForm" style="display:none;">
-        <h3 class="chart-title" id="formTitle" style="margin-bottom:16px;">Penugasan Surveyor Baru</h3>
-        <input type="hidden" id="assignmentId">
-        <div style="margin-bottom:12px;">
-          <label for="displayName">Nama Surveyor</label>
-          <input type="text" id="displayName" placeholder="Nama untuk ditampilkan di dashboard publik">
+      <!-- Area Unggah Berkas -->
+      <div class="titik-upload-grid">
+        <!-- Upload Pertanian -->
+        <div class="titik-upload-card titik-upload-card--pertanian">
+          <div style="display:inline-flex;align-items:center;justify-content:center;width:42px;height:42px;border-radius:50%;background:rgba(52,168,83,0.18);margin-bottom:10px;">
+            <svg width="22" height="22" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="#34a853" stroke="#fff" stroke-width="1.8"/></svg>
+          </div>
+          <h3 style="font-size:15px;margin-bottom:4px;font-weight:700;">Titik Pertanian (Lingkaran)</h3>
+          <p style="font-size:12px;opacity:0.8;margin-bottom:12px;">Format .xlsx, .xls, atau .csv</p>
+          <input type="file" id="fileTitikPertanian" accept=".xlsx,.xls,.csv" style="display:none;">
+          <button type="button" class="header__btn" id="btnBrowsePertanian">📁 Pilih Berkas Pertanian</button>
+          <div id="statusFilePertanian" style="margin-top:12px;font-size:12px;font-weight:600;color:#34a853;">Belum ada file baru dipilih</div>
         </div>
-        <div style="margin-bottom:12px;">
-          <label for="zones">ID Zona (pisah dengan koma)</label>
-          <textarea id="zones" placeholder="Z001, Z002, Z003" rows="3"></textarea>
-          <small style="display:block;margin-top:6px;font-size:12px;opacity:0.75;">Contoh: Z001, Z002, Z003 (kosongkan jika belum ada penugasan)</small>
+
+        <!-- Upload Non-Pertanian -->
+        <div class="titik-upload-card titik-upload-card--nonpertanian">
+          <div style="display:inline-flex;align-items:center;justify-content:center;width:42px;height:42px;border-radius:50%;background:rgba(230,126,34,0.18);margin-bottom:10px;">
+            <svg width="22" height="22" viewBox="0 0 16 16"><polygon points="8,1 15.5,14.5 0.5,14.5" fill="#e67e22" stroke="#fff" stroke-width="1.8"/></svg>
+          </div>
+          <h3 style="font-size:15px;margin-bottom:4px;font-weight:700;">Titik Non-Pertanian (Segitiga)</h3>
+          <p style="font-size:12px;opacity:0.8;margin-bottom:12px;">Format .xlsx, .xls, atau .csv</p>
+          <input type="file" id="fileTitikNonPertanian" accept=".xlsx,.xls,.csv" style="display:none;">
+          <button type="button" class="header__btn" id="btnBrowseNonPertanian">📁 Pilih Berkas Non-Pertanian</button>
+          <div id="statusFileNonPertanian" style="margin-top:12px;font-size:12px;font-weight:600;color:#e67e22;">Belum ada file baru dipilih</div>
         </div>
-        <p id="formStatus"></p>
-        <div class="popup-actions" style="display:flex;gap:12px;margin-top:16px;">
-          <button type="button" id="btnSaveAssignment">Simpan</button>
-          <button type="button" id="btnCancelForm">Batal</button>
+      </div>
+
+      <!-- Ringkasan Validasi & Status Publikasi -->
+      <div id="titikPreviewCard" class="titik-preview-card">
+        <h4 style="font-size:14px;font-weight:700;margin-bottom:12px;">📊 Ringkasan Data Siap Dipublikasikan</h4>
+        <div class="titik-stats-grid">
+          <div class="titik-stat-box">
+            <div class="titik-stat-label">Total Titik</div>
+            <div id="previewTotal" class="titik-stat-value" style="color:#007aff;">0</div>
+          </div>
+          <div class="titik-stat-box">
+            <div class="titik-stat-label">Pertanian</div>
+            <div id="previewPertanian" class="titik-stat-value" style="color:#34a853;">0</div>
+          </div>
+          <div class="titik-stat-box">
+            <div class="titik-stat-label">Non-Pertanian</div>
+            <div id="previewNonPertanian" class="titik-stat-value" style="color:#e67e22;">0</div>
+          </div>
+          <div class="titik-stat-box">
+            <div class="titik-stat-label">Disetujui / Ditolak</div>
+            <div id="previewStatusRatio" class="titik-stat-value titik-stat-value--ratio">0 / 0</div>
+          </div>
         </div>
+        <p id="previewDetailMsg" style="font-size:12px;opacity:0.85;margin:0;"></p>
+      </div>
+
+      <p id="titikPublishStatus" style="font-weight:600;font-size:13px;margin-bottom:12px;"></p>
+
+      <!-- Cuplikan Data Titik -->
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
+        <span style="font-size:13px;font-weight:600;opacity:0.9;">Daftar Titik (Menampilkan 15 baris pertama sampel):</span>
+        <input type="text" id="titikFilterSearch" class="admin-search-input" placeholder="🔍 Saring No/Surveyor/Status..." style="flex:0 1 260px;padding:7px 12px !important;font-size:13px !important;">
       </div>
 
       <div class="table-scroll">
         <table class="zone-table">
           <thead>
             <tr>
-              <th>Nama Surveyor</th>
-              <th>Jumlah Zona</th>
+              <th>No Sampel</th>
+              <th>Surveyor</th>
+              <th>Jenis</th>
+              <th>Latitude</th>
+              <th>Longitude</th>
               <th>Status</th>
-              <th>Diperbarui</th>
-              <th>Aksi</th>
             </tr>
           </thead>
-          <tbody id="assignmentTableBody">
-            <tr><td colspan="5" style="text-align:center">Memuat data…</td></tr>
+          <tbody id="titikTableBody">
+            <tr><td colspan="6" style="text-align:center">Memuat data titik…</td></tr>
           </tbody>
         </table>
       </div>
     </section>
 
     <section class="zone-table-card" id="progressSection" style="display:none" aria-labelledby="progressTitle">
-      <div class="section-heading" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
+      <div class="section-heading">
         <h2 class="chart-title" id="progressTitle">Manajemen & Progres Zona <span id="progressZoneTotalBadge"></span></h2>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <div class="section-actions">
           <button type="button" id="btnUploadGeoJSON" class="header__btn" style="background:#007aff !important;color:#fff !important;border:none !important;" title="Unggah berkas GeoJSON hasil ekspor SIPENTA ATR/BPN">🗺️ Unggah Polygon SIPENTA</button>
           <input type="file" id="fileInputGeoJSON" accept=".geojson,.json" style="display:none;">
           <button type="button" id="btnAutoRecalcSpatial" class="header__btn" style="background:#34a853 !important;color:#fff !important;border:none !important;" title="Hitung otomatis sebaran titik survei ke polygon zona">⚡ Hitung Otomatis</button>
@@ -621,20 +930,27 @@
       </div>
 
       <!-- Banner Hasil Perhitungan Spasial Otomatis -->
-      <div id="spatialSummaryBanner" style="display:none;margin:16px 0;padding:14px 18px;border-radius:14px;background:rgba(52,168,83,0.12);border:1px solid rgba(52,168,83,0.35);color:#1c1c1e;">
+      <div id="spatialSummaryBanner" style="display:none;">
         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
           <div>
-            <strong style="color:#2e7d32;display:flex;align-items:center;gap:6px;">
-              <span>⚡</span> <span>Perhitungan Spasial Point-in-Polygon</span>
+            <strong class="banner-title">
+              <span>⚡</span> <span>Sinkronisasi Spasial Point-in-Polygon</span>
             </strong>
-            <p id="spatialSummaryText" style="margin:4px 0 0 0;font-size:13px;opacity:0.9;"></p>
+            <p id="spatialSummaryText" style="margin:4px 0 0 0;font-size:13px;opacity:0.92;"></p>
           </div>
-          <button type="button" id="btnApplySpatialToCloud" class="header__btn" style="padding:8px 16px;font-size:13px;background:#2e7d32 !important;color:#fff !important;border:none !important;border-radius:8px;font-weight:600;">☁️ Simpan Semua Progres ke Cloud</button>
+          <button type="button" id="btnApplySpatialToCloud" class="header__btn" style="padding:8px 16px;font-size:13px;background:#2e7d32 !important;color:#fff !important;border:none !important;border-radius:10px;font-weight:600;">☁️ Simpan Semua Progres ke Cloud</button>
         </div>
       </div>
 
-      <div style="margin:16px 0;display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
-        <input type="text" id="zoneSearchInput" placeholder="🔍 Cari ID Zona, Surveyor, atau Penggunaan..." style="flex:1;min-width:240px;padding:10px 16px;border-radius:12px;border:1px solid rgba(255,255,255,0.6);background:rgba(255,255,255,0.5);">
+      <div class="admin-filter-bar">
+        <input type="text" id="zoneSearchInput" class="admin-search-input" placeholder="🔍 Cari ID Zona, Surveyor, Penggunaan, atau Status...">
+        <select id="zoneStatusFilter" class="admin-status-select" aria-label="Filter berdasarkan status zona">
+          <option value="">Semua Status</option>
+          <option value="Selesai">Selesai</option>
+          <option value="Proses">Proses</option>
+          <option value="Belum">Belum</option>
+          <option value="Masalah">Masalah</option>
+        </select>
         <span id="progressCountBadge" class="table-count"></span>
       </div>
 
@@ -646,7 +962,7 @@
 
         <div style="margin-bottom:12px;" id="zoneIdInputGroup">
           <label for="inputZoneId">ID Zona / Histzone</label>
-          <input type="text" id="inputZoneId" placeholder="Contoh: Z001 atau kode histzone SIPENTA">
+          <input type="text" id="inputZoneId" placeholder="Contoh: 1P, 6N, 358P">
           <small class="field-error" id="errZoneId" role="alert" style="display:none;color:#d93025;font-size:12px;margin-top:4px;"></small>
         </div>
 
@@ -713,97 +1029,6 @@
       </div>
     </section>
 
-    <section class="zone-table-card" id="titikSection" style="display:none" aria-labelledby="titikTitle">
-      <div class="section-heading" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
-        <div>
-          <h2 class="chart-title" id="titikTitle">Manajemen Sebaran Titik Survei <span id="titikBadgeTotal"></span></h2>
-          <p class="placeholder__text" id="titikCloudStatus" style="font-size:13px;margin-top:4px;">Memeriksa status titik di cloud…</p>
-        </div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;">
-          <button type="button" id="btnExportTitikJson" class="header__btn" title="Unduh data titik terkini sebagai cadangan">📥 Unduh Cadangan JSON</button>
-          <button type="button" id="btnRefreshTitik" class="header__btn" title="Muat ulang dari cloud">🔄 Muat Ulang</button>
-          <button type="button" id="btnPublishTitik" class="header__btn" style="background:#34a853 !important;color:#fff !important;border:none !important;" disabled>🚀 Publikasikan ke Dashboard Publik</button>
-        </div>
-      </div>
-
-      <!-- Area Unggah Berkas -->
-      <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(min(100%, 260px), 1fr));gap:14px;margin:16px 0;">
-        <!-- Upload Pertanian -->
-        <div class="titik-upload-card" style="background:rgba(255,255,255,0.22);border:2px dashed rgba(52,168,83,0.5);border-radius:16px;padding:20px;text-align:center;">
-          <div style="display:inline-flex;align-items:center;justify-content:center;width:42px;height:42px;border-radius:50%;background:rgba(52,168,83,0.18);margin-bottom:10px;">
-            <svg width="22" height="22" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="#34a853" stroke="#fff" stroke-width="1.8"/></svg>
-          </div>
-          <h3 style="font-size:15px;margin-bottom:4px;font-weight:700;">Titik Pertanian (Lingkaran)</h3>
-          <p style="font-size:12px;opacity:0.8;margin-bottom:12px;">Format .xlsx, .xls, atau .csv</p>
-          <input type="file" id="fileTitikPertanian" accept=".xlsx,.xls,.csv" style="display:none;">
-          <button type="button" class="header__btn" id="btnBrowsePertanian">📁 Pilih Berkas Pertanian</button>
-          <div id="statusFilePertanian" style="margin-top:12px;font-size:12px;font-weight:600;color:#34a853;">Belum ada file baru dipilih</div>
-        </div>
-
-        <!-- Upload Non-Pertanian -->
-        <div class="titik-upload-card" style="background:rgba(255,255,255,0.22);border:2px dashed rgba(230,126,34,0.5);border-radius:16px;padding:20px;text-align:center;">
-          <div style="display:inline-flex;align-items:center;justify-content:center;width:42px;height:42px;border-radius:50%;background:rgba(230,126,34,0.18);margin-bottom:10px;">
-            <svg width="22" height="22" viewBox="0 0 16 16"><polygon points="8,1 15.5,14.5 0.5,14.5" fill="#e67e22" stroke="#fff" stroke-width="1.8"/></svg>
-          </div>
-          <h3 style="font-size:15px;margin-bottom:4px;font-weight:700;">Titik Non-Pertanian (Segitiga)</h3>
-          <p style="font-size:12px;opacity:0.8;margin-bottom:12px;">Format .xlsx, .xls, atau .csv</p>
-          <input type="file" id="fileTitikNonPertanian" accept=".xlsx,.xls,.csv" style="display:none;">
-          <button type="button" class="header__btn" id="btnBrowseNonPertanian">📁 Pilih Berkas Non-Pertanian</button>
-          <div id="statusFileNonPertanian" style="margin-top:12px;font-size:12px;font-weight:600;color:#e67e22;">Belum ada file baru dipilih</div>
-        </div>
-      </div>
-
-      <!-- Ringkasan Validasi & Status Publikasi -->
-      <div id="titikPreviewCard" style="display:none;background:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.5);border-radius:16px;padding:16px;margin-bottom:20px;">
-        <h4 style="font-size:14px;font-weight:700;margin-bottom:12px;">📊 Ringkasan Data Siap Dipublikasikan</h4>
-        <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(130px, 1fr));gap:10px;margin-bottom:12px;">
-          <div style="background:rgba(255,255,255,0.3);padding:12px;border-radius:12px;text-align:center;">
-            <div style="font-size:11px;opacity:0.8;font-weight:600;">Total Titik</div>
-            <div id="previewTotal" style="font-size:20px;font-weight:800;color:#007aff;">0</div>
-          </div>
-          <div style="background:rgba(255,255,255,0.3);padding:12px;border-radius:12px;text-align:center;">
-            <div style="font-size:11px;opacity:0.8;font-weight:600;">Pertanian</div>
-            <div id="previewPertanian" style="font-size:20px;font-weight:800;color:#34a853;">0</div>
-          </div>
-          <div style="background:rgba(255,255,255,0.3);padding:12px;border-radius:12px;text-align:center;">
-            <div style="font-size:11px;opacity:0.8;font-weight:600;">Non-Pertanian</div>
-            <div id="previewNonPertanian" style="font-size:20px;font-weight:800;color:#e67e22;">0</div>
-          </div>
-          <div style="background:rgba(255,255,255,0.3);padding:12px;border-radius:12px;text-align:center;">
-            <div style="font-size:11px;opacity:0.8;font-weight:600;">Disetujui / Ditolak</div>
-            <div id="previewStatusRatio" style="font-size:16px;font-weight:800;color:#2c3e50;">0 / 0</div>
-          </div>
-        </div>
-        <p id="previewDetailMsg" style="font-size:12px;opacity:0.85;margin:0;"></p>
-      </div>
-
-      <p id="titikPublishStatus" style="font-weight:600;font-size:13px;margin-bottom:12px;"></p>
-
-      <!-- Cuplikan Data Titik -->
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
-        <span style="font-size:13px;font-weight:600;opacity:0.9;">Daftar Titik (Menampilkan 10 baris pertama sampel):</span>
-        <input type="text" id="titikFilterSearch" placeholder="🔍 Saring No/Surveyor/Status..." style="max-width:260px;padding:6px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.6);background:rgba(255,255,255,0.4);font-size:12px;">
-      </div>
-
-      <div class="table-scroll">
-        <table class="zone-table">
-          <thead>
-            <tr>
-              <th>No Sampel</th>
-              <th>Surveyor</th>
-              <th>Jenis</th>
-              <th>Latitude</th>
-              <th>Longitude</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody id="titikTableBody">
-            <tr><td colspan="6" style="text-align:center">Memuat data titik…</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </section>
-
     <section class="zone-table-card" id="commentSection" style="display:none" aria-labelledby="commentTitle">
       <div class="section-heading">
         <h2 class="chart-title" id="commentTitle">Moderasi Komentar</h2>
@@ -836,13 +1061,12 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
   <script src="js/firebase-config.js"></script>
   <script src="js/auth.js"></script>
-  <script src="js/sync.js?v=20261119_sync"></script>
-  <script src="js/spatial-engine.js?v=20261119_sync"></script>
-  <script src="js/admin-surveyor.js?v=20261119_sync"></script>
-  <script src="js/admin-progress.js?v=20261119_sync"></script>
-  <script src="js/admin-titik.js?v=20261119_sync"></script>
+  <script src="js/sync.js?v=20261119_adminv2"></script>
+  <script src="js/spatial-engine.js?v=20261119_adminv2"></script>
+  <script src="js/admin-progress.js?v=20261119_adminv2"></script>
+  <script src="js/admin-titik.js?v=20261119_adminv2"></script>
   <script src="js/admin-comment.js"></script>
-  <script src="js/admin.js"></script>
+  <script src="js/admin.js?v=20261119_adminv2"></script>
   <script src="https://unpkg.com/lenis@1.1.20/dist/lenis.min.js"></script>
   <script src="js/lenis-init.js?v=20261119_lenis"></script>
 

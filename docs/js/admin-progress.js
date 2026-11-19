@@ -153,7 +153,7 @@
   }
 
   // Hitung point-in-polygon sebaran titik ke poligon zona secara otomatis
-  async function jalankanHitungSpasial(isManualClick = false) {
+  async function jalankanHitungSpasial(isManualClick = false, providedPoints = null, isStagedPreview = false) {
     if (!masterGeoJSON || !masterGeoJSON.features || masterGeoJSON.features.length === 0) return;
     if (!window.zntSpatial || typeof window.zntSpatial.tautkanTitikKeZona !== 'function') return;
 
@@ -165,7 +165,10 @@
       if (bannerText) bannerText.textContent = 'Menghitung point-in-polygon sebaran titik survei ke polygon zona...';
     }
 
-    const points = await dapatkanSemuaTitikSurvei();
+    const points = (Array.isArray(providedPoints) && providedPoints.length > 0)
+      ? providedPoints
+      : await dapatkanSemuaTitikSurvei();
+
     if (!points || points.length === 0) {
       if (bannerText && isManualClick) {
         bannerText.textContent = 'Tidak ditemukan titik survei untuk dihitung.';
@@ -193,11 +196,15 @@
       };
     });
 
+    perbaruiOpsiFilterStatus();
     renderTable();
 
     if (banner && bannerText) {
       banner.style.display = 'block';
-      bannerText.innerHTML = `<strong>${res.summary.titikMapped} dari ${res.summary.totalTitik} titik</strong> berhasil dipetakan ke <strong>${res.summary.totalZona} zona</strong> dalam ${res.summary.durationMs}ms. Status: <strong>${res.summary.zonaSiap} Siap</strong>, <strong>${res.summary.zonaProses} Proses</strong>, <strong>${res.summary.zonaBelum} Belum</strong>.`;
+      const labelMode = isStagedPreview
+        ? '<span style="display:inline-block;margin-left:6px;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;background:rgba(230,126,34,0.2);color:#d35400;">Pratinjau Titik Baru</span>'
+        : '<span style="display:inline-block;margin-left:6px;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;background:rgba(52,168,83,0.2);color:#2e7d32;">Tersinkron</span>';
+      bannerText.innerHTML = `<strong>${res.summary.titikMapped} dari ${res.summary.totalTitik} titik</strong> dipetakan ke <strong>${res.summary.totalZona} zona</strong> (${res.summary.durationMs}ms). Status: <strong>${res.summary.zonaSiap} Selesai</strong>, <strong>${res.summary.zonaProses} Proses</strong>, <strong>${res.summary.zonaBelum} Belum</strong>. ${labelMode}`;
     }
 
     const titleBadge = document.getElementById('progressZoneTotalBadge');
@@ -388,10 +395,19 @@
         };
       });
 
+      perbaruiOpsiFilterStatus();
       renderTable();
       status.textContent = `${allZones.length} zona siap dikelola.`;
       const titleBadge = document.getElementById('progressZoneTotalBadge');
       if (titleBadge) titleBadge.textContent = `(${allZones.length} Zona)`;
+
+      // Jika data titik sudah termuat dari card Sebaran Titik Survei, langsung sinkronkan otomatis
+      if (window.zntAdminTitik && typeof window.zntAdminTitik.getPoints === 'function') {
+        const existingPts = window.zntAdminTitik.getPoints();
+        if (Array.isArray(existingPts) && existingPts.length > 0) {
+          jalankanHitungSpasial(false, existingPts, false);
+        }
+      }
     } catch (err) {
       status.textContent = `Error memuat data: ${err.message}`;
       console.error(err);
@@ -405,19 +421,50 @@
       surveyorList.map(s => `<option value="${esc(s.nama)}">${esc(s.nama)}</option>`).join('');
   }
 
-  function renderTable(filterQuery = '') {
+  function perbaruiOpsiFilterStatus() {
+    const sel = document.getElementById('zoneStatusFilter');
+    if (!sel) return;
+    const prev = sel.value;
+    const counts = { Selesai: 0, Proses: 0, Belum: 0, Masalah: 0, 'Belum diverifikasi': 0 };
+    allZones.forEach((z) => {
+      const s = z.status || 'Belum';
+      counts[s] = (counts[s] || 0) + 1;
+    });
+
+    sel.innerHTML =
+      `<option value="">Semua Status (${allZones.length})</option>` +
+      `<option value="Selesai">Selesai (${counts.Selesai})</option>` +
+      `<option value="Proses">Proses (${counts.Proses})</option>` +
+      `<option value="Belum">Belum (${counts.Belum})</option>` +
+      `<option value="Masalah">Masalah (${counts.Masalah})</option>` +
+      (counts['Belum diverifikasi'] > 0 ? `<option value="Belum diverifikasi">Belum diverifikasi (${counts['Belum diverifikasi']})</option>` : '');
+
+    if (prev && Array.from(sel.options).some(o => o.value === prev)) {
+      sel.value = prev;
+    }
+  }
+
+  function renderTable(filterQuery) {
     const tbody = document.getElementById('progressTableBody');
     const badge = document.getElementById('progressCountBadge');
+    const searchEl = document.getElementById('zoneSearchInput');
+    const statusEl = document.getElementById('zoneStatusFilter');
     if (!tbody) return;
 
-    const q = filterQuery.trim().toLowerCase();
+    const rawQuery = typeof filterQuery === 'string' ? filterQuery : (searchEl ? searchEl.value : '');
+    const q = rawQuery.trim().toLowerCase();
+    const statusFilter = statusEl ? statusEl.value.trim().toLowerCase() : '';
+
     const filtered = allZones.filter(z => {
+      if (statusFilter && String(z.status || '').toLowerCase() !== statusFilter) {
+        return false;
+      }
       if (!q) return true;
       return z.id.toLowerCase().includes(q) ||
              z.surveyor.toLowerCase().includes(q) ||
              z.penggunaan.toLowerCase().includes(q) ||
              (z.luasan && z.luasan.toLowerCase().includes(q)) ||
-             z.status.toLowerCase().includes(q);
+             String(z.status || '').toLowerCase().includes(q);
     });
 
     if (badge) {
@@ -524,15 +571,25 @@
       btnApplyCloud.addEventListener('click', simpanSemuaProgresKeCloud);
     }
 
-    // Dengarkan event titik diperbarui dari admin-titik untuk sinkronisasi otomatis
-    window.addEventListener('znt:points-updated', () => {
-      jalankanHitungSpasial(false);
+    // Dengarkan event titik dari card Manajemen Sebaran Titik Survei (load, staged preview, & publish)
+    window.addEventListener('znt:points-loaded', (e) => {
+      jalankanHitungSpasial(false, e && e.detail, false);
+    });
+    window.addEventListener('znt:points-staged', (e) => {
+      jalankanHitungSpasial(false, e && e.detail, true);
+    });
+    window.addEventListener('znt:points-updated', (e) => {
+      jalankanHitungSpasial(false, e && e.detail, false);
     });
 
-    // Filter Search
+    // Filter Search & Status
     const searchInput = document.getElementById('zoneSearchInput');
     if (searchInput) {
-      searchInput.addEventListener('input', (e) => renderTable(e.target.value));
+      searchInput.addEventListener('input', () => renderTable());
+    }
+    const statusFilter = document.getElementById('zoneStatusFilter');
+    if (statusFilter) {
+      statusFilter.addEventListener('change', () => renderTable());
     }
   }
 
