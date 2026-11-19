@@ -70,8 +70,14 @@
        return;
      }
 
-     if (!zoneId || !/^Z[0-9]{3}$/.test(zoneId)) {
-       status.textContent = 'ID Zona harus format Z001-Z999';
+     if (!zoneId || zoneId.length === 0) {
+       status.textContent = 'ID Zona harus diisi (contoh: 1P, 6N, 358P)';
+       status.style.color = '#d93025';
+       return;
+     }
+
+     if (zoneId.length > 50) {
+       status.textContent = 'ID Zona maksimal 50 karakter';
        status.style.color = '#d93025';
        return;
      }
