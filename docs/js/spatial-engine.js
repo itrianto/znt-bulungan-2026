@@ -123,9 +123,13 @@
 
     const t0 = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
 
-    // 1. Buat indeks BBox untuk setiap fitur zona
+    // 1. Buat indeks BBox untuk setiap fitur zona (gunakan cache agar hitung ulang < 2ms)
     const indexedFeatures = features.map(f => {
-      const bbox = (f.geometry && f.geometry.coordinates) ? hitungBbox(f.geometry.coordinates) : [0,0,0,0];
+      let bbox = f._CACHED_BBOX;
+      if (!bbox) {
+        bbox = (f.geometry && f.geometry.coordinates) ? hitungBbox(f.geometry.coordinates) : [0, 0, 0, 0];
+        f._CACHED_BBOX = bbox;
+      }
       return {
         feature: f,
         bbox: bbox,
@@ -189,12 +193,35 @@
         zonaBelum++;
       }
 
-      // Ambil nama surveyor dari titik yang masuk ke zona (jika belum ada surveyor tetap)
-      let surveyorOtomatis = p.Surveyor || p.SURVEYOR || null;
-      if (!surveyorOtomatis || surveyorOtomatis === 'Belum ditugaskan') {
-        const surveyorsInZone = Array.from(new Set(titikList.map(t => t.surveyor).filter(s => s && s !== '-')));
-        if (surveyorsInZone.length > 0) {
-          surveyorOtomatis = surveyorsInZone.join(', ');
+      // Ambil surveyor dominan dari titik yang masuk ke zona (jika belum ada surveyor manual/tetap)
+      const surveyorManual = (!p._SPATIAL_SURVEYOR && (p.Surveyor || p.SURVEYOR)) || null;
+      let surveyorOtomatis = (surveyorManual && surveyorManual !== 'Belum ditugaskan') ? surveyorManual : null;
+
+      if (!surveyorOtomatis) {
+        const freq = new Map();
+        // Prioritaskan titik disetujui; jika kosong gunakan semua titik di zona
+        const sumberTitik = approvedList.length > 0 ? approvedList : titikList;
+        sumberTitik.forEach(t => {
+          const s = String(t.surveyor || '').trim();
+          if (s && s !== '-') {
+            freq.set(s, (freq.get(s) || 0) + 1);
+          }
+        });
+        let topSurveyor = null;
+        let topCount = 0;
+        freq.forEach((cnt, nama) => {
+          if (cnt > topCount) {
+            topCount = cnt;
+            topSurveyor = nama;
+          }
+        });
+        if (topSurveyor) {
+          surveyorOtomatis = topSurveyor;
+          p._SPATIAL_SURVEYOR = true;
+        } else if (p._SPATIAL_SURVEYOR) {
+          delete p.Surveyor;
+          delete p.SURVEYOR;
+          delete p._SPATIAL_SURVEYOR;
         }
       }
 

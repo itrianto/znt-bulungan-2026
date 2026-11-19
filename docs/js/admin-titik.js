@@ -427,7 +427,11 @@
       cloudTitik = allPoints;
       hasPendingChanges = false;
       try {
+        window.dispatchEvent(new CustomEvent('znt:points-updated', { detail: allPoints }));
         document.dispatchEvent(new CustomEvent('znt:points-updated', { detail: allPoints }));
+        if (window.zntSync && typeof window.zntSync.broadcast === 'function') {
+          window.zntSync.broadcast('POINTS_UPDATED', { count: allPoints.length });
+        }
       } catch (_) {}
 
       if (statusMsg) {

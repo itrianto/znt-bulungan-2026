@@ -486,11 +486,42 @@
     return html;
   }
 
+  let highlightedLayer = null;
+  let highlightedZoneId = null;
+
+  function hapusHighlightZona() {
+    if (highlightedLayer && layerZona) {
+      try { layerZona.resetStyle(highlightedLayer); } catch (_) {}
+    }
+    highlightedLayer = null;
+    highlightedZoneId = null;
+  }
+
+  function terapkanHighlightLayer(layer, zoneId) {
+    if (!layer) return;
+    hapusHighlightZona();
+    highlightedLayer = layer;
+    highlightedZoneId = zoneId || null;
+    const isSat = (basemapAktif === 'satellite');
+    layer.setStyle({
+      color: isSat ? '#00f5ff' : '#0066ff',
+      weight: 4.5,
+      opacity: 1,
+      fillColor: isSat ? '#00f5ff' : '#00a2ff',
+      fillOpacity: modeWarna === 'titik' ? 0.25 : 0.45,
+      dashArray: null
+    });
+    if (typeof layer.bringToFront === 'function') {
+      layer.bringToFront();
+    }
+  }
+
   function padaSetiapZona(fitur, layer) {
     const props = fitur.properties;
 
     layer.on({
       mouseover: (e) => {
+        if (e.target === highlightedLayer) return;
         if (modeWarna === 'titik') {
           const isSat = (basemapAktif === 'satellite');
           e.target.setStyle({
@@ -502,12 +533,17 @@
         }
         e.target.setStyle({ weight: 3, fillOpacity: 0.85 });
         e.target.bringToFront();
+        if (highlightedLayer && typeof highlightedLayer.bringToFront === 'function') {
+          highlightedLayer.bringToFront();
+        }
       },
       mouseout: (e) => {
+        if (e.target === highlightedLayer) return;
         layerZona.resetStyle(e.target);
       },
       click: (e) => {
         if (modeWarna === 'titik') return;
+        hapusHighlightZona();
         layerZona.resetStyle();
         e.target.setStyle({ weight: 3, fillOpacity: 0.85 });
       }
@@ -524,11 +560,23 @@
     if (layerZona) {
       peta.removeLayer(layerZona);
     }
+    highlightedLayer = null;
     layerZona = L.geoJSON(dataZona, {
       style: (fitur) => gayaPoligon(fitur.properties),
       onEachFeature: padaSetiapZona
     });
     layerZona.addTo(peta);
+
+    // Pertahankan highlight zona hasil pencarian jika sedang aktif
+    if (highlightedZoneId) {
+      const targetId = highlightedZoneId;
+      layerZona.eachLayer((l) => {
+        const p = l.feature && l.feature.properties;
+        if (p && dapatkanIdZona(p).toUpperCase() === targetId) {
+          terapkanHighlightLayer(l, targetId);
+        }
+      });
+    }
   }
 
   function itemLegenda(nama, warna) {
@@ -623,9 +671,86 @@
     perbaruiLegenda();
   }
 
-  function terapkanDataTitik(list) {
+  let firestoreProgressMap = null;
+  let titikUpdatedAt = null;
+
+  // Mesin sinkronisasi terpadu: menggabungkan Polygon + Titik Survei (spasial) + Progress Firestore
+  // dalam satu alur deterministik tanpa tumpang tindih atau render ganda.
+  function sinkronkanSemuaData() {
+    if (!dataZona || !Array.isArray(dataZona.features) || dataZona.features.length === 0) return;
+
+    // 1. Terapkan override lokal admin jika ada
+    if (window.zntSync) {
+      window.zntSync.applyOverridesToGeoJSON(dataZona);
+    }
+
+    // 2. Hitung spasial Point-in-Polygon otomatis dari sebaran titik aktif
+    const adaTitik = Array.isArray(dataTitik) && dataTitik.length > 0;
+    if (adaTitik && window.zntSpatial && typeof window.zntSpatial.tautkanTitikKeZona === 'function') {
+      window.zntSpatial.tautkanTitikKeZona(dataZona.features, dataTitik);
+    }
+
+    // 3. Gabungkan metadata / status khusus dari Cloud Firestore (progressPublic)
+    if (firestoreProgressMap && firestoreProgressMap.size > 0) {
+      dataZona.features.forEach((f) => {
+        const idZona = dapatkanIdZona(f.properties).toUpperCase();
+        const p = firestoreProgressMap.get(idZona);
+        if (adaTitik) {
+          // Saat titik survei aktif, jumlah titik & status Selesai/Proses/Belum mengikuti hasil spasial realtime.
+          // Status manual 'Masalah' dan timestamp pembaruan dari Firestore tetap dipertahankan.
+          if (p) {
+            if (p.status === 'Masalah') {
+              f.properties.STATUS = 'Masalah';
+            }
+            if (p.updatedAt) {
+              f.properties.updatedAt = p.updatedAt;
+            } else if (titikUpdatedAt && (Number(f.properties.TITIK_SELESAI) || 0) > 0) {
+              f.properties.updatedAt = titikUpdatedAt;
+            }
+            f.properties._FIRESTORE_VERIFIED = true;
+          } else if (titikUpdatedAt && (Number(f.properties.TITIK_SELESAI) || 0) > 0) {
+            f.properties.updatedAt = titikUpdatedAt;
+          }
+        } else if (p) {
+          Object.assign(f.properties, {
+            STATUS: p.status || 'Belum',
+            TITIK_SELESAI: Number(p.titikSelesai) || 0,
+            updatedAt: p.updatedAt || f.properties.updatedAt,
+            _FIRESTORE_VERIFIED: true
+          });
+        }
+      });
+    } else if (adaTitik && titikUpdatedAt) {
+      dataZona.features.forEach((f) => {
+        if ((Number(f.properties.TITIK_SELESAI) || 0) > 0 && !f.properties.updatedAt) {
+          f.properties.updatedAt = titikUpdatedAt;
+        }
+      });
+    }
+
+    // 4. Tautkan kembali surveyor & warna agar peta, legenda, dan grafik 100% selaras
+    tautkanSurveyorDanZona(dataZona);
+    daftarKategori = daftarKategoriUnik(dataZona);
+    daftarSurveyor = daftarSurveyorUnik(dataZona);
+
+    // 5. Satu kali render bersih untuk peta, titik, legenda, kartu ringkasan, tabel, & semua grafik
+    renderLayer();
+    renderTitikLayer();
+    perbaruiLegenda();
+    document.dispatchEvent(new CustomEvent('znt:progress-changed', { detail: dataZona }));
+  }
+
+  function terapkanProgressCloud(perubahanMap) {
+    firestoreProgressMap = perubahanMap instanceof Map ? perubahanMap : new Map();
+    sinkronkanSemuaData();
+  }
+
+  function terapkanDataTitik(list, updatedAtMeta) {
     if (!Array.isArray(list)) return;
     dataTitik = list;
+    if (updatedAtMeta) {
+      titikUpdatedAt = updatedAtMeta;
+    }
 
     const titikP = dataTitik.filter((t) => t.jenis === 'Pertanian');
     const titikNP = dataTitik.filter((t) => t.jenis === 'Non-Pertanian');
@@ -637,81 +762,76 @@
     if (optP) optP.textContent = `Pertanian (${titikP.length})`;
     if (optNP) optNP.textContent = `Non-Pertanian (${titikNP.length})`;
 
-    // Eksekusi kalkulasi spasial otomatis (point-in-polygon) jika data poligon sudah termuat
-    if (window.zntSpatial && dataZona && dataZona.features && dataZona.features.length > 0) {
-      window.zntSpatial.tautkanTitikKeZona(dataZona.features, dataTitik);
-
-      // PENTING: Tautkan kembali data surveyor ke poligon zona agar warna dan legenda tersinkronisasi
-      tautkanSurveyorDanZona(dataZona);
-      daftarSurveyor = daftarSurveyorUnik(dataZona);
-
-      renderLayer();
-      perbaruiLegenda();
-      document.dispatchEvent(new CustomEvent('znt:progress-changed', { detail: dataZona }));
-      if (window.grafikZNT && window.grafikZNT.renderSurveyor) {
-        window.grafikZNT.renderSurveyor(dataZona);
-      }
-    }
-
-    renderTitikLayer();
-    perbaruiLegenda();
+    sinkronkanSemuaData();
   }
 
   let titikListenerBound = false;
 
+  async function muatTitikFallbackCSV() {
+    const urlsPertanian = [
+      '../data/geojson/sebaran_titik/titik_pertanian.csv',
+      'data/geojson/sebaran_titik/titik_pertanian.csv',
+      'public-data/sebaran_titik/titik_pertanian.csv?v=2'
+    ];
+    const urlsNonPertanian = [
+      '../data/geojson/sebaran_titik/titik_non_pertanian.csv',
+      'data/geojson/sebaran_titik/titik_non_pertanian.csv',
+      'public-data/sebaran_titik/titik_non_pertanian.csv?v=2'
+    ];
+
+    const [resP, resNP] = await Promise.all([
+      fetchWithFallback(urlsPertanian).then((r) => r.text()).catch((e) => { console.warn(e); return ''; }),
+      fetchWithFallback(urlsNonPertanian).then((r) => r.text()).catch((e) => { console.warn(e); return ''; })
+    ]);
+
+    const titikP = resP ? parseTitikCSV(resP, 'Pertanian') : [];
+    const titikNP = resNP ? parseTitikCSV(resNP, 'Non-Pertanian') : [];
+
+    terapkanDataTitik([...titikP, ...titikNP]);
+  }
+
   async function muatDataTitik() {
     try {
-      // 1. Coba muat dari Cloud Firestore (Pilihan A - sebaranTitik/master)
+      // 1. Pasang single realtime listener ke Cloud Firestore (sebaranTitik/master)
+      //    Menghindari pemuatan & kalkulasi ganda saat inisialisasi.
       if (window.firebase && firebase.firestore) {
-        try {
+        if (!titikListenerBound) {
+          titikListenerBound = true;
+          let isInitialSnap = true;
           const docRef = firebase.firestore().collection('sebaranTitik').doc('master');
-          const docSnap = await docRef.get();
-          if (docSnap.exists) {
-            const d = docSnap.data();
-            if (Array.isArray(d.points) && d.points.length > 0) {
-              terapkanDataTitik(d.points);
-
-              // Pasang realtime listener agar jika admin upload, peta langsung terupdate
-              if (!titikListenerBound) {
-                titikListenerBound = true;
-                docRef.onSnapshot((snap) => {
-                  if (snap && snap.exists) {
-                    const snapData = snap.data();
-                    if (Array.isArray(snapData.points)) {
-                      terapkanDataTitik(snapData.points);
-                    }
+          docRef.onSnapshot(
+            (snap) => {
+              if (snap && snap.exists) {
+                const snapData = snap.data();
+                if (Array.isArray(snapData.points) && snapData.points.length > 0) {
+                  terapkanDataTitik(snapData.points, snapData.updatedAt || null);
+                  if (!isInitialSnap) {
+                    tampilkanToastSinkronisasi(`Sebaran titik (${snapData.points.length}), peta & grafik diperbarui!`);
                   }
-                }, (err) => console.warn('Realtime titik snapshot error:', err));
+                  isInitialSnap = false;
+                  return;
+                }
               }
-              return;
+              if (isInitialSnap) {
+                isInitialSnap = false;
+                muatTitikFallbackCSV();
+              }
+            },
+            (err) => {
+              console.warn('Realtime titik snapshot error, fallback CSV lokal:', err.message);
+              if (isInitialSnap) {
+                isInitialSnap = false;
+                muatTitikFallbackCSV();
+              }
             }
-          }
-        } catch (e) {
-          console.warn('Gagal memuat titik dari Firestore, menggunakan fallback CSV lokal:', e.message);
+          );
+          return;
         }
+        return;
       }
 
-      // 2. Fallback: muat dari berkas CSV lokal bawaan
-      const urlsPertanian = [
-        '../data/geojson/sebaran_titik/titik_pertanian.csv',
-        'data/geojson/sebaran_titik/titik_pertanian.csv',
-        'public-data/sebaran_titik/titik_pertanian.csv?v=2'
-      ];
-      const urlsNonPertanian = [
-        '../data/geojson/sebaran_titik/titik_non_pertanian.csv',
-        'data/geojson/sebaran_titik/titik_non_pertanian.csv',
-        'public-data/sebaran_titik/titik_non_pertanian.csv?v=2'
-      ];
-
-      const [resP, resNP] = await Promise.all([
-        fetchWithFallback(urlsPertanian).then((r) => r.text()).catch((e) => { console.warn(e); return ''; }),
-        fetchWithFallback(urlsNonPertanian).then((r) => r.text()).catch((e) => { console.warn(e); return ''; })
-      ]);
-
-      const titikP = resP ? parseTitikCSV(resP, 'Pertanian') : [];
-      const titikNP = resNP ? parseTitikCSV(resNP, 'Non-Pertanian') : [];
-
-      terapkanDataTitik([...titikP, ...titikNP]);
+      // 2. Fallback jika Firebase belum tersedia
+      await muatTitikFallbackCSV();
     } catch (err) {
       console.warn('Data sebaran titik survei belum tersedia:', err.message);
     }
@@ -1000,15 +1120,21 @@
         tampilkanToastSinkronisasi('Polygon zona diperbarui dari Admin!');
         return;
       }
+      if (msg && msg.type === 'POINTS_UPDATED') {
+        if (window.firebase && firebase.firestore) {
+          try {
+            const snap = await firebase.firestore().collection('sebaranTitik').doc('master').get();
+            if (snap.exists && Array.isArray(snap.data().points)) {
+              terapkanDataTitik(snap.data().points, snap.data().updatedAt || null);
+              tampilkanToastSinkronisasi('Sebaran titik, peta & grafik diperbarui dari Admin!');
+              return;
+            }
+          } catch (_) {}
+        }
+        return;
+      }
       if (!dataZona) return;
-      window.zntSync.applyOverridesToGeoJSON(dataZona);
-      tautkanSurveyorDanZona(dataZona);
-      daftarKategori = daftarKategoriUnik(dataZona);
-      daftarSurveyor = daftarSurveyorUnik(dataZona);
-      renderLayer();
-      perbaruiLegenda();
-      document.dispatchEvent(new CustomEvent('znt:data-ready', { detail: dataZona }));
-      document.dispatchEvent(new CustomEvent('znt:progress-changed', { detail: dataZona }));
+      sinkronkanSemuaData();
       tampilkanToastSinkronisasi('Data zona & surveyor diperbarui dari Admin!');
     });
   }
@@ -1018,6 +1144,7 @@
     if (!dataZona || !layerZona) return;
     daftarSurveyor = daftarSurveyorUnik(dataZona);
     layerZona.eachLayer((l) => {
+      if (l === highlightedLayer) return;
       l.setStyle(gayaPoligon(l.feature.properties));
     });
     perbaruiLegenda();
@@ -1031,27 +1158,220 @@
   function fokusZona(idZona) {
     if (!layerZona || !idZona) return false;
     const targetId = String(idZona).trim().toUpperCase();
-    let targetLayer = null;
+    let exactLayer = null;
+    let partialLayer = null;
 
     layerZona.eachLayer((l) => {
       const p = l.feature && l.feature.properties;
       if (!p) return;
       const id = dapatkanIdZona(p).toUpperCase();
       if (id === targetId) {
-        targetLayer = l;
+        exactLayer = l;
+      } else if (!partialLayer && id.startsWith(targetId)) {
+        partialLayer = l;
       }
     });
 
+    const targetLayer = exactLayer || partialLayer;
     if (targetLayer) {
+      const matchedId = dapatkanIdZona(targetLayer.feature.properties).toUpperCase();
+      terapkanHighlightLayer(targetLayer, matchedId);
+
       if (peta && targetLayer.getBounds && targetLayer.getBounds().isValid()) {
-        peta.fitBounds(targetLayer.getBounds(), { padding: [50, 50], maxZoom: 15 });
+        peta.flyToBounds(targetLayer.getBounds(), {
+          padding: [55, 55],
+          maxZoom: 16,
+          duration: 0.65
+        });
       }
       try {
         targetLayer.bindPopup(() => buatKontenPopup(targetLayer.feature.properties)).openPopup();
       } catch (_) {}
-      return true;
+      return matchedId;
     }
     return false;
+  }
+
+  // ============================================================
+  // PENCARIAN ZONA PADA PETA (Ringkas + Autocomplete + Highlight)
+  // ============================================================
+  function initPencarianZona() {
+    const input = document.getElementById('mapZoneSearchInput');
+    const listEl = document.getElementById('mapZoneSearchResults');
+    const clearBtn = document.getElementById('mapZoneSearchClear');
+    const formEl = document.getElementById('mapZoneSearchForm');
+    if (!input || !listEl) return;
+
+    let activeIdx = -1;
+    let currentMatches = [];
+
+    function tutupDropdown() {
+      listEl.innerHTML = '';
+      listEl.hidden = true;
+      activeIdx = -1;
+    }
+
+    function cariZona(query) {
+      const q = String(query || '').trim().toUpperCase();
+      if (!q || !dataZona || !Array.isArray(dataZona.features)) return [];
+
+      const exact = [];
+      const starts = [];
+      const contains = [];
+
+      dataZona.features.forEach((f) => {
+        const p = f.properties || {};
+        const id = dapatkanIdZona(p).toUpperCase();
+        const surveyor = (dapatkanSurveyor(p) || '').toUpperCase();
+        if (id === q) {
+          exact.push(f);
+        } else if (id.startsWith(q)) {
+          starts.push(f);
+        } else if (id.includes(q) || surveyor.includes(q)) {
+          contains.push(f);
+        }
+      });
+
+      const sortById = (a, b) =>
+        dapatkanIdZona(a.properties).localeCompare(dapatkanIdZona(b.properties), undefined, { numeric: true });
+
+      return [
+        ...exact.sort(sortById),
+        ...starts.sort(sortById),
+        ...contains.sort(sortById)
+      ].slice(0, 8);
+    }
+
+    function pilihZona(idZona) {
+      const matched = fokusZona(idZona);
+      if (matched) {
+        input.value = matched;
+        if (clearBtn) clearBtn.hidden = false;
+        tutupDropdown();
+        input.blur();
+      } else {
+        tampilkanToastSinkronisasi(`Zona "${idZona}" tidak ditemukan di peta.`);
+      }
+    }
+
+    function renderDropdown(matches, query) {
+      currentMatches = matches;
+      activeIdx = -1;
+
+      if (!query.trim()) {
+        tutupDropdown();
+        return;
+      }
+
+      if (matches.length === 0) {
+        listEl.innerHTML = `<div class="map-search__empty">Zona "${aman(query)}" tidak ditemukan</div>`;
+        listEl.hidden = false;
+        return;
+      }
+
+      listEl.innerHTML = matches.map((f, idx) => {
+        const p = f.properties || {};
+        const id = dapatkanIdZona(p);
+        const status = dapatkanStatus(p);
+        const kelas = status.toLowerCase().replace(/\s+/g, '');
+        const titik = Number(p.TITIK_SELESAI) || 0;
+        const surveyor = dapatkanSurveyor(p);
+        const subText = surveyor && surveyor !== 'Belum ditugaskan' ? `${surveyor} · ${titik} titik` : `${titik} titik`;
+
+        return (
+          `<button type="button" class="map-search__item" data-index="${idx}" data-zone-id="${aman(id)}">` +
+            `<span class="map-search__id">${aman(id)}</span>` +
+            `<span class="map-search__meta">${aman(subText)}</span>` +
+            `<span class="status-badge status-badge--${kelas} map-search__badge">${aman(status)}</span>` +
+          `</button>`
+        );
+      }).join('');
+
+      listEl.hidden = false;
+    }
+
+    function updateHighlightItem() {
+      const items = listEl.querySelectorAll('.map-search__item');
+      items.forEach((el, idx) => {
+        el.classList.toggle('is-active', idx === activeIdx);
+      });
+    }
+
+    input.addEventListener('input', () => {
+      const val = input.value;
+      if (clearBtn) clearBtn.hidden = !val.trim();
+      if (!val.trim()) {
+        hapusHighlightZona();
+        tutupDropdown();
+        return;
+      }
+      renderDropdown(cariZona(val), val);
+    });
+
+    input.addEventListener('focus', () => {
+      if (input.value.trim()) {
+        renderDropdown(cariZona(input.value), input.value);
+      }
+    });
+
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowDown') {
+        if (!currentMatches.length) return;
+        e.preventDefault();
+        activeIdx = (activeIdx + 1) % currentMatches.length;
+        updateHighlightItem();
+      } else if (e.key === 'ArrowUp') {
+        if (!currentMatches.length) return;
+        e.preventDefault();
+        activeIdx = (activeIdx - 1 + currentMatches.length) % currentMatches.length;
+        updateHighlightItem();
+      } else if (e.key === 'Escape') {
+        tutupDropdown();
+        input.blur();
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        if (activeIdx >= 0 && currentMatches[activeIdx]) {
+          pilihZona(dapatkanIdZona(currentMatches[activeIdx].properties));
+        } else if (currentMatches.length > 0) {
+          pilihZona(dapatkanIdZona(currentMatches[0].properties));
+        } else if (input.value.trim()) {
+          pilihZona(input.value.trim());
+        }
+      }
+    });
+
+    if (formEl) {
+      formEl.addEventListener('submit', (e) => {
+        e.preventDefault();
+        if (currentMatches.length > 0) {
+          pilihZona(dapatkanIdZona(currentMatches[0].properties));
+        } else if (input.value.trim()) {
+          pilihZona(input.value.trim());
+        }
+      });
+    }
+
+    listEl.addEventListener('click', (e) => {
+      const btn = e.target.closest('.map-search__item');
+      if (!btn) return;
+      pilihZona(btn.dataset.zoneId);
+    });
+
+    if (clearBtn) {
+      clearBtn.addEventListener('click', () => {
+        input.value = '';
+        clearBtn.hidden = true;
+        hapusHighlightZona();
+        tutupDropdown();
+        input.focus();
+      });
+    }
+
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.map-search')) {
+        tutupDropdown();
+      }
+    });
   }
 
   // ============================================================
@@ -1061,6 +1381,8 @@
     muatData: muatDataZona,
     getData: () => dataZona,
     renderUlang: renderLayer,
+    terapkanProgressCloud,
+    hapusHighlightZona,
     gantiMode,
     dapatkanKategori,
     dapatkanStatus,
@@ -1094,6 +1416,7 @@
 
   function mulai() {
     initPeta();
+    initPencarianZona();
     muatDataZona();
     pasangListenerPolygonCloud();
   }

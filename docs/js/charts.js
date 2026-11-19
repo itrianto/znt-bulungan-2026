@@ -8,30 +8,49 @@
   function hancurkan(...grafik) { grafik.forEach((g) => { if (g) g.destroy(); }); }
 
   // Chart 2: jumlah zona per surveyor.
-  // Sumber daftar, urutan, dan warna = surveyor.csv (sama dengan legenda peta);
+  // Sumber daftar, urutan, dan warna = surveyor.csv + surveyor dinamis dari titik survei;
   // jumlah dihitung dari fitur Master_Zona. Surveyor tanpa zona tetap tampil (0).
   function renderSurveyor(data) {
     if (!window.Chart || !data || !window.petaZNT) return;
-    hancurkan(surveyor); surveyor = null;
     const kanvas = document.getElementById('chartRekapSurveyor');
     if (!kanvas) return;
 
-    const daftar = window.petaZNT.daftarSurveyorCSV();
-    if (!daftar.length) return;
+    const daftarBase = window.petaZNT.daftarSurveyorCSV() || [];
+    const daftar = daftarBase.map((s) => ({ nama: s.nama, warna: s.warna }));
     const jumlah = new Map(daftar.map((s) => [s.nama, 0]));
+
     (data.features || []).forEach((f) => {
       const nama = window.petaZNT.dapatkanSurveyor(f.properties);
-      if (jumlah.has(nama)) jumlah.set(nama, jumlah.get(nama) + 1);
+      if (!nama || nama === 'Belum ditugaskan') return;
+      if (!jumlah.has(nama)) {
+        jumlah.set(nama, 0);
+        daftar.push({ nama, warna: '#64748b' });
+      }
+      jumlah.set(nama, jumlah.get(nama) + 1);
     });
+
+    if (!daftar.length) return;
+
+    const labels = daftar.map((s) => s.nama);
+    const values = daftar.map((s) => jumlah.get(s.nama) || 0);
+    const colors = daftar.map((s) => s.warna);
+
+    if (surveyor) {
+      surveyor.data.labels = labels;
+      surveyor.data.datasets[0].data = values;
+      surveyor.data.datasets[0].backgroundColor = colors;
+      surveyor.update('none');
+      return;
+    }
 
     surveyor = new Chart(kanvas, {
       type: 'bar',
       data: {
-        labels: daftar.map((s) => s.nama),
+        labels,
         datasets: [{
           label: 'Jumlah zona',
-          data: daftar.map((s) => jumlah.get(s.nama)),
-          backgroundColor: daftar.map((s) => s.warna)
+          data: values,
+          backgroundColor: colors
         }]
       },
       options: {
@@ -49,24 +68,29 @@
 
   function render(data, status) {
     if (!window.Chart) return;
-    hancurkan(donut);
+    const nilaiStatus = statusList.map((s) => status[s] || 0);
 
     // Chart 1: Status doughnut
-    donut = new Chart(document.getElementById('chartProgresZona'), {
-      type: 'doughnut',
-      data: {
-        labels: statusList,
-        datasets: [{
-          data: statusList.map((s) => status[s] || 0),
-          backgroundColor: statusList.map((s) => warna[s])
-        }]
-      },
-      options: {
-        plugins: { legend: { position: 'bottom' } },
-        responsive: true,
-        maintainAspectRatio: false
-      }
-    });
+    if (donut) {
+      donut.data.datasets[0].data = nilaiStatus;
+      donut.update('none');
+    } else {
+      donut = new Chart(document.getElementById('chartProgresZona'), {
+        type: 'doughnut',
+        data: {
+          labels: statusList,
+          datasets: [{
+            data: nilaiStatus,
+            backgroundColor: statusList.map((s) => warna[s])
+          }]
+        },
+        options: {
+          plugins: { legend: { position: 'bottom' } },
+          responsive: true,
+          maintainAspectRatio: false
+        }
+      });
+    }
 
     // Chart 2: Surveyor bar chart
     renderSurveyor(data);
