@@ -936,6 +936,14 @@ body.dark .admin-auth-form__input:focus {
    13. RESPONSIVE
    ========================================================= */
 
+.summary-card:last-child {
+  grid-column: 1 / -1;
+}
+
+.table-scroll {
+  -webkit-overflow-scrolling: touch;
+}
+
 /* Desktop besar */
 @media (min-width: 900px) {
   .main {
@@ -970,99 +978,171 @@ body.dark .admin-auth-form__input:focus {
   }
 }
 
-/* Tablet */
+/* Tablet & Ponsel */
 @media (max-width: 768px) {
-  .map__legend {
-    max-width: 70%;
-  }
-}
-
-/* HP lebar */
-@media (max-width: 480px) {
-  .admin-auth-card {
-    max-width: 100%;
-    margin-left: 16px;
-    margin-right: 16px;
-    padding: 24px;
+  body {
+    background-attachment: scroll;
+    overflow-x: hidden;
   }
 
-  .admin-auth-form__title {
-    font-size: 1.25rem;
-  }
-
-  .admin-auth-form__input {
-    font-size: 16px;
-  }
-}
-
-/* HP kecil */
-@media (max-width: 460px) {
   .header {
-    top: 6px;
+    position: relative;
+    top: 0;
     width: calc(100% - 16px);
-    margin-top: 6px;
-    padding: 10px 14px;
+    margin: 10px auto 0;
+    padding: 12px 14px;
+    border-radius: 16px;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
   }
 
-  .main {
-    width: calc(100% - 16px);
-    margin-top: 10px;
+  .header__title {
+    white-space: normal;
+    word-break: break-word;
+    font-size: 0.98rem;
+    line-height: 1.28;
   }
 
-  .brand__mark {
-    width: 30px;
-    height: 30px;
-  }
-
-  .header__title span,
-  .theme-toggle__text {
-    display: none;
-  }
-
-  .header__btn,
-  .theme-toggle {
-    min-height: 34px;
-    padding: 0 9px;
-  }
-
-  .map-section,
-  .map {
-    min-height: 390px;
-  }
-
-  .map__controls {
-    left: 9px;
-    right: 9px;
-    top: 9px;
-  }
-
-  .map__control-label {
-    display: none;
-  }
-
-  .map__select {
-    flex: 1;
-    max-width: none;
-  }
-
-  .map__legend {
-    bottom: 9px;
-    left: 9px;
-  }
-
-  .summary-cards {
+  .header__actions {
+    width: 100%;
+    display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 8px;
   }
 
+  .header__btn,
+  .theme-toggle {
+    justify-content: center;
+    min-height: 38px;
+    padding: 8px 12px;
+    font-size: 0.8rem;
+    border-radius: 12px;
+  }
+
+  .main {
+    width: calc(100% - 16px);
+    margin: 10px auto 20px;
+    gap: 12px;
+  }
+
+  .map-section {
+    border-radius: 16px;
+    min-height: 360px;
+  }
+
+  .map {
+    height: 56vh;
+    min-height: 360px;
+    max-height: 500px;
+  }
+
+  /* Tetap di kanan atas agar tidak menutupi tombol zoom Leaflet (+/-) di kiri atas */
+  .map__controls {
+    top: 10px;
+    right: 10px;
+    left: auto;
+    min-width: 0;
+    max-width: calc(100% - 62px);
+    padding: 8px 10px;
+  }
+
+  .map__controls.is-collapsed {
+    padding: 6px 10px;
+  }
+
+  .map__select {
+    min-height: 38px;
+    font-size: 14px;
+  }
+
+  .map__legend {
+    bottom: 10px;
+    left: 10px;
+    right: auto;
+    max-width: calc(100% - 20px);
+    max-height: 45%;
+    padding: 8px 10px;
+  }
+
+  .map__legend--grid {
+    max-width: calc(100% - 20px);
+  }
+
+  .leaflet-popup-content-wrapper {
+    max-width: calc(100vw - 44px) !important;
+  }
+
+  .leaflet-popup-content {
+    margin: 10px 12px;
+    font-size: 0.8rem;
+    word-break: break-word;
+  }
+
+  .summary-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
   .summary-card {
-    min-height: 94px;
+    min-height: 86px;
     padding: 12px;
+    border-radius: 14px;
+  }
+
+  .summary-card__value {
+    font-size: 1.25rem;
   }
 
   .chart-wrapper,
   .placeholder,
   .zone-table-card {
-    padding: 13px;
+    padding: 14px;
+    border-radius: 16px;
+  }
+
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="number"],
+  textarea,
+  select,
+  .admin-auth-form__input {
+    font-size: 16px;
+  }
+}
+
+/* HP lebar & kecil */
+@media (max-width: 480px) {
+  .brand__mark {
+    width: 30px;
+    height: 30px;
+    font-size: 0.9rem;
+  }
+
+  .admin-auth-card {
+    max-width: 100%;
+    margin: 12px auto 24px;
+    padding: 20px 16px;
+  }
+
+  .admin-auth-form__title {
+    font-size: 1.2rem;
+  }
+
+  .map__legend--grid .map__legend-body {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 8px;
+  }
+
+  .map__legend-item {
+    font-size: 0.72rem;
+  }
+
+  .zone-table th,
+  .zone-table td {
+    padding: 9px 10px;
+    font-size: 12.5px;
+    white-space: nowrap;
   }
 }

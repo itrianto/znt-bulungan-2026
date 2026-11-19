@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/style.css?v=20261119_mobile">
 
   <!-- =========================================================
        TEMA CLEAR GLASS KHUSUS ADMIN.HTML
@@ -369,6 +369,113 @@
       font-size: 16px !important;
       padding: 4px !important;
     }
+
+    /* ====== PENYESUAIAN TAMPILAN PONSEL (ADMIN) ====== */
+    @media (max-width: 768px) {
+      body {
+        background-attachment: scroll !important;
+        overflow-x: hidden !important;
+      }
+      .header {
+        position: relative !important;
+        top: 0 !important;
+        flex-direction: column !important;
+        align-items: stretch !important;
+        width: calc(100% - 16px) !important;
+        margin: 10px auto 0 !important;
+        padding: 12px 14px !important;
+        border-radius: 16px !important;
+        gap: 10px !important;
+      }
+      .header__title {
+        white-space: normal !important;
+        font-size: 0.96rem !important;
+        line-height: 1.25 !important;
+      }
+      .header__actions {
+        display: grid !important;
+        grid-template-columns: 1fr 1fr !important;
+        gap: 8px !important;
+        width: 100% !important;
+      }
+      .header__btn {
+        justify-content: center !important;
+        padding: 9px 10px !important;
+        font-size: 0.8rem !important;
+        border-radius: 12px !important;
+        text-align: center !important;
+      }
+      .main {
+        width: calc(100% - 16px) !important;
+        margin: 10px auto 24px !important;
+        gap: 12px !important;
+      }
+      .admin-auth-card,
+      .zone-table-card {
+        padding: 14px !important;
+        border-radius: 16px !important;
+      }
+      .section-heading {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 10px !important;
+      }
+      #progressSection .section-heading > div,
+      #titikSection .section-heading > div {
+        display: grid !important;
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 8px !important;
+        width: 100% !important;
+      }
+      #btnResetMaster,
+      #btnNewAssignment {
+        grid-column: 1 / -1 !important;
+        width: 100% !important;
+      }
+      #zoneSearchInput {
+        min-width: 0 !important;
+        width: 100% !important;
+        font-size: 16px !important;
+      }
+      #assignmentForm,
+      #progressForm {
+        padding: 14px !important;
+        margin: 12px 0 !important;
+      }
+      #adminEmail,
+      #adminPassword,
+      #displayName,
+      #zones,
+      #progressTitik,
+      #progressStatusSelect,
+      #inputZoneId,
+      #progressSurveyorSelect,
+      #progressPenggunaanSelect {
+        font-size: 16px !important;
+        padding: 10px 12px !important;
+      }
+      .popup-actions {
+        display: flex !important;
+        gap: 8px !important;
+      }
+      .popup-actions button {
+        flex: 1 !important;
+        padding: 10px 12px !important;
+      }
+      .zone-table th,
+      .zone-table td {
+        padding: 9px 10px !important;
+        font-size: 12.5px !important;
+        white-space: nowrap !important;
+      }
+      #spatialSummaryBanner {
+        padding: 12px !important;
+      }
+      #btnApplySpatialToCloud {
+        width: 100% !important;
+        justify-content: center !important;
+      }
+    }
   </style>
 </head>
 <body>
@@ -619,7 +726,7 @@
       </div>
 
       <!-- Area Unggah Berkas -->
-      <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(300px, 1fr));gap:16px;margin:20px 0;">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(min(100%, 260px), 1fr));gap:14px;margin:16px 0;">
         <!-- Upload Pertanian -->
         <div class="titik-upload-card" style="background:rgba(255,255,255,0.22);border:2px dashed rgba(52,168,83,0.5);border-radius:16px;padding:20px;text-align:center;">
           <div style="display:inline-flex;align-items:center;justify-content:center;width:42px;height:42px;border-radius:50%;background:rgba(52,168,83,0.18);margin-bottom:10px;">
